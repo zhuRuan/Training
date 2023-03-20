@@ -87,17 +87,50 @@ def get_matrices():
     return ret, dummy, CAP
 
 
+'''
+计算
+输入：
+ret：收益率矩阵
+dummy：持仓矩阵
+CAP：市值矩阵
+lamda：做多和做空比率
+'''
+
+
 def computing(ret: pd.DataFrame, dummy: pd.DataFrame, CAP: pd.DataFrame, lamda):
-    m3 = computing_1(CAP, dummy, lamda) #得到 True False 持仓矩阵矩阵
+    m3 = computing_1(CAP, dummy, lamda)  # 得到 True False 持仓矩阵
     invest_numbers = m3.sum(axis=1)
-    result = (1+ret) * m3 # 收益率乘以m3
-    mean_ret = result.sum(axis=1)/invest_numbers
+    result = (1 + ret) * m3  # 收益率乘以m3
+    mean_ret = result.sum(axis=1) / invest_numbers
     total_ret = mean_ret.cumprod()
-    return  m3, total_ret
-
-    # 按间距中的绿色按钮以运行脚本。
+    return m3, total_ret
 
 
+'''
+计算IC值
+输入：
+factor:因子值矩阵
+ret:收益率矩阵
+'''
+
+
+def calculate_ic(factor: pd.DataFrame, ret: pd.DataFrame):
+    ret.index = factor.index
+    factor_mean = factor.mean(axis=1)
+    ret_mean = ret.mean(axis=1)
+    a1 = (factor.fillna(value=0) - factor_mean).fillna(value=0)
+    a2 = (ret.fillna(value=0) - ret_mean).fillna(value=0)
+    matrix = a1.dot(a2.transpose())
+    cov = np.diagonal(matrix)
+    std_factor = factor.std(axis=1)
+    std_ret = ret.std(axis=1)
+
+    ic = cov / std_factor / std_ret
+
+    return ic
+
+
+# 按间距中的绿色按钮以运行脚本。
 if __name__ == '__main__':
     np.random.seed(3)
 
@@ -115,7 +148,7 @@ if __name__ == '__main__':
     plt.show()
 
     # 因子暴露
-    coef = np.corrcoef(ret.loc[:,1:], CAP.loc[:,:len(CAP.columns)-2])
-    print(coef)
+    ic = calculate_ic(CAP[dummy].loc[:len(CAP) - 2, :], ret[dummy].loc[1:, :])
+    print(ic)
 
 # 访问 https://www.jetbrains.com/help/pycharm/ 获取 PyCharm 帮助
