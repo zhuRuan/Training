@@ -118,14 +118,16 @@ def calculate_ic(factor: pd.DataFrame, ret: pd.DataFrame):
     ret.index = factor.index
     factor_mean = factor.mean(axis=1)
     ret_mean = ret.mean(axis=1)
-    a1 = (factor.fillna(value=0) - factor_mean).fillna(value=0)
-    a2 = (ret.fillna(value=0) - ret_mean).fillna(value=0)
-    matrix = a1.dot(a2.transpose())
-    cov = np.diagonal(matrix)
+    a1 = (factor - factor_mean).fillna(value=0)
+    a2 = (ret - ret_mean).fillna(value=0)
+    a3 = a2.transpose()
+    matrix = np.dot(a1,a3)
+    numbers = factor.count(axis=1)
+    cov = np.diagonal(matrix) / (numbers -1)
     std_factor = factor.std(axis=1)
     std_ret = ret.std(axis=1)
 
-    ic = cov / std_factor / std_ret
+    ic = cov / (std_factor * std_ret)
 
     return ic
 
