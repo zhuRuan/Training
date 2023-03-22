@@ -3,9 +3,10 @@ import numpy as np
 
 np.random.seed(3)
 
-def return_rate_matrix():
+
+def return_rate_matrix(rows=20, columns=30):
     # 生成return_rate矩阵
-    ret = pd.DataFrame((np.random.rand(20, 30) - 0.5) * 0.42)
+    ret = pd.DataFrame((np.random.rand(rows, columns) - 0.5) * 0.42)
     return ret
 
 
@@ -38,14 +39,14 @@ def dummy_matrix():
     return dummy
 
 
-def CAP_matrix():
+def CAP_matrix(rows=20, columns=30):
     # 生成市值矩阵
-    df1 = pd.DataFrame(np.random.randint(20, 2000, (10, 28)))
-    df1[28] = df1[3]
-    df1[29] = df1[3]
-    df2 = pd.DataFrame(np.random.randint(20, 2000, (10, 27)))
-    df2[27] = df2[3]
-    df2[28] = df2[3]
-    df2[29] = df2[3]
+    df1 = pd.DataFrame(np.random.randint(20, 24, (round(rows / 2), columns - 2)))
+    df1[len(df1.columns)] = df1[3]
+    df1[len(df1.columns)] = df1[3]
+    df2 = pd.DataFrame(np.random.randint(20, 24, (round(rows / 2), columns - 3)))
+    df2[len(df2.columns)] = df2[3]
+    df2[len(df2.columns)] = df2[3]
+    df2[len(df2.columns)] = df2[3]
     CAP = df1.append(df2, ignore_index=True)
     return CAP

@@ -11,19 +11,23 @@ ret:收益率矩阵
 
 
 def calculate_ic(factor: pd.DataFrame, ret: pd.DataFrame):
-    ret.index = factor.index
-    factor_mean = factor.mean(axis=1)
-    ret_mean = ret.mean(axis=1)
-    a1 = (factor - factor_mean).fillna(value=0)
-    a2 = (ret - ret_mean).fillna(value=0)
-    a3 = a2.transpose()
-    matrix = np.dot(a1, a3)
-    numbers = factor.count(axis=1)
-    cov = np.diagonal(matrix) / (numbers - 1)
-    std_factor = factor.std(axis=1)
-    std_ret = ret.std(axis=1)
+    factor.dropna(inplace=True)
+    ret.dropna(inplace=True)
+    factor = np.mat(factor.to_numpy())
+    ret = np.mat(ret.to_numpy())
+    a1_mean = np.average(factor,axis=1)
+    a2_mean = np.average(ret,axis=1)
 
-    ic = cov / (std_factor * std_ret)
+    a1 = (factor - a1_mean).A
+    a2 = (ret - a2_mean).A
+    list2 = []
+    for row_r, row_f in zip(a2, a1):
+        length = len(row_r) -1
+        cov_pre = np.dot(row_r,row_f)
+        cov = cov_pre / length
+        list2.append(cov)
+    var = np.multiply(factor.std(axis=1) ,ret.std(axis=1)).T.A
+    ic = np.array(list2) / var
 
     return ic
 
