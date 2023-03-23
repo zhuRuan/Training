@@ -1,15 +1,19 @@
 import numpy as np
 import pandas as pd
+import streamlit as st
 from back_testing.back_testing import run_back_testing
 
 pd.set_option('display.max_columns', None)
 
 # 按间距中的绿色按钮以运行脚本。
 if __name__ == '__main__':
-    boxes = 3
+    boxes = 10
     lamda = 0.2
+    lag = 1
+    rows = 2000
+    columns = 500
     np.random.seed(3)
-    run_back_testing(lamda, boxes)
+    run_back_testing(lamda, boxes, lag, rows, columns)
 
     #
 
