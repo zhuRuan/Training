@@ -9,6 +9,12 @@ def space(num_lines=1):  # 空格
     for _ in range(num_lines):
         st.write("")
 
+st.set_page_config(layout="centered", page_icon="random", page_title="回测结果展示")
+st.title("回测结果展示")
+st.markdown('当前源代码更新日期为：**:blue[2023年3月23日]**', unsafe_allow_html=False)
+sidebar = st.sidebar
+now_time = dt.now()
+space(5)
 
 def table_return(return_matrix: pd.DataFrame):
     '''生成收益分析表格'''
@@ -43,7 +49,7 @@ def plot_exposure(valid_number_matrix, dist_matrix, dist_mad_matrix):
         st.subheader('MAD处理后的因子值分布')
         fig = px.histogram(dist_mad_matrix, x="CAP_after_MAD")
         st.plotly_chart(figure_or_data=fig)
-    space(2)
+    space(4)
 
 
 def plot_monotonicity(mono_dist, ic_list, ic_cum_list):
@@ -55,11 +61,7 @@ def plot_monotonicity(mono_dist, ic_list, ic_cum_list):
         st.line_chart(data=ic_list)
         st.subheader("IC累计曲线")
         st.line_chart(data=ic_cum_list)
-    space(2)
+    space(4)
 
 
-st.set_page_config(layout="centered", page_icon="random", page_title="回测结果展示")
-st.title("回测结果展示")
-sidebar = st.sidebar
-now_time = dt.now()
-space(5)
+
