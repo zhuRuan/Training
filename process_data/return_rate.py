@@ -31,15 +31,21 @@ def computing(ret: pd.DataFrame, dummy: pd.DataFrame, CAP: pd.DataFrame, lamda, 
     m3, m_top, m_bot, boxes_list = computing_1(CAP, dummy, lamda, boxes)  # 得到 True False 持仓矩阵
 
     # 计算不同boxes的收益率
-    ret_list = []
+    ret_df = pd.DataFrame()
+    columns = []
+    i = 0
     for box in boxes_list:
         ret_box = computing_profolio_return_rate(box, ret, False)
-        ret_list.append(ret_box)
+        ret_df = pd.concat([ret_df,ret_box],axis=1, ignore_index=True)
+        columns.append('box'+str(i))
+        i += 1
+    ret_df.columns = columns
 
     # 计算前分位数和后分位数头寸的收益
     ret_top = computing_profolio_return_rate(m_top, ret, False)
     ret_bot = computing_profolio_return_rate(m_bot, ret, True)
-    # 计算收益率
-    total_ret = (ret_top + ret_bot)/2
 
-    return m3, total_ret, ret_list, ret_top, ret_bot
+    # 计算收益率
+    total_ret = (ret_top + ret_bot) / 2
+
+    return m3, total_ret, ret_df, ret_top, ret_bot

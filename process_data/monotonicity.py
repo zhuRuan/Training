@@ -25,18 +25,24 @@ def calculate_ic(factor: pd.DataFrame, ret: pd.DataFrame):
     var = factor.std(axis=1).values * ret.std(axis=1).values
     ic = np.array(list2) / var
 
-    return ic
+    #将ic从series变为dataframe
+    ic_df = pd.DataFrame(ic)
+    ic_df.columns=['IC_CAP']
+    return ic_df
 
 
-def mono_dist(ret_list):
+def mono_dist(ret_df):
     # 计算加总
-    ret_cum_list = []
-    for series in ret_list:
-        ret_cum_list.append(series.cumprod().tail(1))
-    return ret_cum_list
+    ret_cum_df = ret_df.cumprod().iloc[-1]
+    ret_cum_df = ret_cum_df.to_frame()
+    ret_cum_df['boxes'] = ret_cum_df.index
+    ret_cum_df.columns = ['return_rate','boxes']
 
-def monotonicity(ret:pd.DataFrame, factor:pd.DataFrame, ret_list):
+    return ret_cum_df
+
+def monotonicity(ret:pd.DataFrame, factor:pd.DataFrame, ret_df):
     ic = calculate_ic(ret, factor)
     ic_cum = ic.cumsum()
-    _mono_dist = mono_dist(ret_list)
+    ic_cum.columns = ['IC_CUM_CAP']
+    _mono_dist = mono_dist(ret_df)
     return ic, ic_cum, _mono_dist
