@@ -30,10 +30,8 @@ def run_back_testing(lamda=0.2, boxes=3, lag=1, rows=30, columns=30):
     # print(portfolio)
 
     # 净值曲线展示
-    ret_cum = ret_total.cumprod()
-    ret_cum.plot()
-    plt.title("净值曲线")
-    plt.show()
+    plot_return(total_return_matrix=ret_total.cumprod(),top_return_matrix=ret_top.cumprod(), bottom_return_matrix=ret_short.cumprod())
+
 
     # 因子暴露
     valid_number_matrix, dist_matrix, dist_mad_matrix = exposure(CAP)
@@ -42,3 +40,4 @@ def run_back_testing(lamda=0.2, boxes=3, lag=1, rows=30, columns=30):
     # 单调性
     ic, ic_cum, _mono_dist = monotonicity(factor=CAP[dummy].iloc[:-lag, :],ret= ret[dummy].iloc[lag:, :], ret_list=ret_list)
     plot_monotonicity(mono_dist=_mono_dist, ic_list=ic, ic_cum_list=ic_cum)
+
