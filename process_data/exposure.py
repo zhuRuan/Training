@@ -14,7 +14,7 @@ factor取极值之后的分布
 
 def exposure(CAP: pd.DataFrame):
     # 有效数值
-    valid_number = CAP.count(axis=1).rename('valid_number_CAP')
+    valid_number = CAP.count(axis=1).rename('valid_number_CAP').to_frame().reset_index()
 
     # 直方图
     dist = pd.DataFrame(CAP.to_numpy().flatten())

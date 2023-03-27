@@ -6,7 +6,7 @@ np.random.seed(3)
 
 def return_rate_matrix(rows=50, columns=30):
     # 生成return_rate矩阵
-    ret = pd.DataFrame(np.random.normal(size=(rows, columns), loc=0.00015, scale=0.03))
+    ret = pd.DataFrame(np.random.normal(size=(rows, columns), loc=0.0000000, scale=0.03))
     return ret
 
 

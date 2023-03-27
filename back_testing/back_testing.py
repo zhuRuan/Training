@@ -10,7 +10,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-
+@st.cache_resource
 def get_matrices(rows, columns, lag: int):
     # 生成三个矩阵，分别是收益率、成分股归属、市值
     ret = return_rate_matrix(rows, columns)
@@ -24,13 +24,13 @@ def run_back_testing(lamda=0.2, boxes=3, lag=1, rows=30, columns=30):
     ret, dummy, CAP = get_matrices(rows, columns, lag)
 
     # 数组运算
-    portfolio, ret_total, ret_list, ret_top, ret_short = computing(ret, dummy, CAP, lamda, boxes)
+    portfolio, ret_total, ret_list, ret_top, ret_bot = computing(ret, dummy, CAP, lamda, boxes)
 
     # print("持仓矩阵：")
     # print(portfolio)
 
     # 净值曲线展示
-    plot_return(total_return_matrix=ret_total.cumprod(),top_return_matrix=ret_top.cumprod(), bottom_return_matrix=ret_short.cumprod())
+    plot_return(total_return_matrix=(ret_total+1).cumprod(),top_return_matrix=(ret_top+1).cumprod(), bottom_return_matrix=(ret_bot+1).cumprod())
 
     # 因子暴露
     valid_number_matrix, dist_matrix, dist_mad_matrix = exposure(CAP)
