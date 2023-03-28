@@ -10,6 +10,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
+
 @st.cache_resource
 def get_matrices(rows, columns, lag: int):
     # 生成三个矩阵，分别是收益率、成分股归属、市值
@@ -30,13 +31,14 @@ def run_back_testing(lamda=0.2, boxes=3, lag=1, rows=30, columns=30):
     # print(portfolio)
 
     # 净值曲线展示
-    plot_return(total_return_matrix=(ret_total+1).cumprod(),top_return_matrix=(ret_top+1).cumprod(), bottom_return_matrix=(ret_bot+1).cumprod())
+    plot_return(total_return_matrix=(ret_total + 1).cumprod(), top_return_matrix=(ret_top + 1).cumprod(),
+                bottom_return_matrix=(ret_bot + 1).cumprod())
 
     # 因子暴露
     valid_number_matrix, dist_matrix, dist_mad_matrix = exposure(CAP)
     plot_exposure(valid_number_matrix=valid_number_matrix, dist_matrix=dist_matrix, dist_mad_matrix=dist_mad_matrix)
 
     # 单调性
-    ic, ic_cum, _mono_dist = monotonicity(factor=CAP[dummy].iloc[:-lag, :],ret= ret[dummy].iloc[lag:, :], ret_df=ret_list)
+    ic, ic_cum, _mono_dist = monotonicity(factor=CAP[dummy].iloc[:-lag, :], ret=ret[dummy].iloc[lag:, :],
+                                          ret_df=ret_list)
     plot_monotonicity(mono_dist=_mono_dist, ic_list=ic, ic_cum_list=ic_cum)
-
