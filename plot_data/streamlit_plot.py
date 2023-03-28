@@ -213,9 +213,10 @@ def plot_exposure(valid_number_matrix, dist_matrix, dist_mad_matrix):
 
 
 @st.cache_data
-def plot_monotonicity(mono_dist, ic_list, ic_cum_list):
+def plot_monotonicity(mono_dist, ic_list, ic_cum_list, lag):
     with st.container():
         st.header("单调性")
+        st.subheader('滞后期数'+str(lag))
         fig = px.bar(data_frame=mono_dist, x='boxes', y=['return_rate'])
         fig.update_layout(
             title='因子分层单调性',  # 整个图的标题

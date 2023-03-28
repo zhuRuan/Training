@@ -39,6 +39,10 @@ def run_back_testing(lamda=0.2, boxes=3, lag=1, rows=30, columns=30):
     plot_exposure(valid_number_matrix=valid_number_matrix, dist_matrix=dist_matrix, dist_mad_matrix=dist_mad_matrix)
 
     # 单调性
-    ic, ic_cum, _mono_dist = monotonicity(factor=CAP[dummy].iloc[:-lag, :], ret=ret[dummy].iloc[lag:, :],
-                                          ret_df=ret_list)
-    plot_monotonicity(mono_dist=_mono_dist, ic_list=ic, ic_cum_list=ic_cum)
+    lag_list = [1,5,20]
+    for _lag in lag_list :
+        factor_matrix = CAP[dummy].iloc[:-_lag, :]
+        ret_matrix = (ret[dummy]+1).rolling(lag).apply(np.prod) -1
+        ic, ic_cum, _mono_dist = monotonicity(factor=factor_matrix, ret=ret_matrix.iloc[_lag:, :],
+                                              ret_df=ret_list)
+        plot_monotonicity(mono_dist=_mono_dist, ic_list=ic, ic_cum_list=ic_cum, lag=_lag)
