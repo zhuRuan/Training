@@ -6,12 +6,23 @@ import plotly.graph_objects as go
 from numpy import linspace
 from scipy.stats.kde import gaussian_kde
 from datetime import datetime as dt
+import datetime
 
 st.set_page_config(layout="wide", page_icon="🧊", page_title="回测结果展示")
 st.title("回测结果展示")
-st.markdown('当前源代码更新日期为：**:blue[2023年3月27日]**', unsafe_allow_html=False)
+st.markdown('当前源代码更新日期为：**:blue[2023年3月28日]**', unsafe_allow_html=False)
 sidebar = st.sidebar
 now_time = dt.now()
+
+if 'first_visit' not in st.session_state:
+    st.session_state.first_visit = True
+else:
+    st.session_state.first_visit = False
+# 初始化全局配置
+if st.session_state.first_visit:
+    st.session_state.date_time = datetime.datetime.now() + datetime.timedelta(
+        hours=8)  # Streamlit Cloud的时区是UTC，加8小时即北京时间
+    st.balloons()  # 第一次访问时才会放气
 
 
 def space(num_lines=1):  # 空格
@@ -153,7 +164,7 @@ def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix):
 
 
 @st.cache_data
-def kernel(dist_matrix: pd.DataFrame, trace_name = 'a'):
+def kernel(dist_matrix: pd.DataFrame, trace_name='a'):
     x_range = linspace(min(dist_matrix['CAP']), max(dist_matrix['CAP']), len(dist_matrix['CAP']))
     kde = gaussian_kde(dist_matrix['CAP'])
     df = pd.DataFrame({'x_range': x_range, 'x_kde': kde(x_range)})
@@ -185,9 +196,9 @@ def plot_exposure(valid_number_matrix, dist_matrix, dist_mad_matrix):
             # fig.update_layout(title_font_color='blue')
             st.plotly_chart(figure_or_data=fig)
         with col2:
-            trace1= kernel(dist_matrix.iloc[:int((len(dist_matrix)*2/3)),:], '前三分之二')
-            trace2= kernel(dist_matrix.iloc[int((len(dist_matrix)*2/3)):,:], '后三分之一')
-            fig = go.Figure(data=[trace1,trace2])
+            trace1 = kernel(dist_matrix.iloc[:int((len(dist_matrix) * 2 / 3)), :], '前三分之二')
+            trace2 = kernel(dist_matrix.iloc[int((len(dist_matrix) * 2 / 3)):, :], '后三分之一')
+            fig = go.Figure(data=[trace1, trace2])
 
             # fig = px.histogram(dist_matrix, x="CAP")
             fig.update_layout(
@@ -216,7 +227,7 @@ def plot_exposure(valid_number_matrix, dist_matrix, dist_mad_matrix):
 def plot_monotonicity(mono_dist, ic_list, ic_cum_list, lag):
     with st.container():
         st.header("单调性")
-        st.subheader('滞后期数'+str(lag))
+        st.subheader('滞后期数' + str(lag))
         fig = px.bar(data_frame=mono_dist, x='boxes', y=['return_rate'])
         fig.update_layout(
             title='因子分层单调性',  # 整个图的标题
