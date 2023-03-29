@@ -15,11 +15,11 @@ sidebar = st.sidebar
 now_time = dt.now()
 
 if 'first_visit' not in st.session_state:
-    st.session_state.first_visit = True
+    first_visit = True
 else:
-    st.session_state.first_visit = False
+    first_visit = False
 # 初始化全局配置
-if st.session_state.first_visit:
+if first_visit:
     st.session_state.date_time = datetime.datetime.now() + datetime.timedelta(
         hours=8)  # Streamlit Cloud的时区是UTC，加8小时即北京时间
     st.balloons()  # 第一次访问时才会放气
@@ -141,23 +141,21 @@ def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix):
 
         fig.add_trace(go.Scatter(
             x=return_matrix.index,
-            y=return_matrix['Long_top_return'],
+            y=return_matrix['Long_top'],
             mode='lines',  # 模式
             name='long_top_return'
         ))
         fig.add_trace(go.Scatter(
             x=return_matrix.index,
-            y=return_matrix['Long_bottom_return'],
+            y=return_matrix['Long_bottom'],
             mode='lines',  # 模式
             name='long_bottom_return'
         ))
         st.plotly_chart(figure_or_data=fig)  # 折线图
 
         # 收益表格
-        table, table2, table3 = table_return(return_matrix)
-        plot_table(table, '全时期收益表格')
-        plot_table(table2, '前三分之二时期收益表格')
-        plot_table(table3, '后三分之一时期收益表格')
+        table = table_return(return_matrix)
+        plot_table(table, '收益表格')
 
     space(4)
 
