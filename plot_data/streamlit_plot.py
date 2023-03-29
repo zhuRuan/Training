@@ -10,7 +10,7 @@ import datetime
 
 st.set_page_config(layout="wide", page_icon="🧊", page_title="回测结果展示")
 st.title("回测结果展示")
-st.markdown('当前源代码更新日期为：**:blue[2023年3月28日]**', unsafe_allow_html=False)
+st.markdown('当前源代码更新日期为：**:blue[2023年3月29日]**', unsafe_allow_html=False)
 sidebar = st.sidebar
 now_time = dt.now()
 
@@ -81,9 +81,9 @@ def table_return(return_matrix: pd.DataFrame):
 
     return pd.DataFrame(
         {'因子名称': ['CAP', 'CAP', 'CAP'], '参数1': ['', '', ''], '参数2': ['', '', ''], '科目类别': list(return_matrix.columns),
-         '年化收益率（全时期）': annual_ret, '夏普比率（全时期）': sharp, '最大回撤率（全时期）': maximum_draw, '年化收益率（前2/3时期）': annual_ret_2,
-         '夏普比率（前2/3时期）': sharp_2, '最大回撤率（前2/3时期）': maximum_draw_2, '年化收益率（后1/3时期）': annual_ret_3, '夏普比率（后1/3时期）': sharp_3,
-         '最大回撤率（后1/3时期）': maximum_draw_3, })
+         '年化收益率<br />（全时期）': annual_ret, '夏普比率<br />（全时期）': sharp, '最大回撤率<br />（全时期）': maximum_draw, '年化收益率<br />（前2/3时期）': annual_ret_2,
+         '夏普比率<br />（前2/3时期）': sharp_2, '最大回撤率<br />（前2/3时期）': maximum_draw_2, '年化收益率<br />（后1/3时期）': annual_ret_3, '夏普比率<br />（后1/3时期）': sharp_3,
+         '最大回撤率<br />（后1/3时期）': maximum_draw_3, })
 
 
 def plot_table(table, fig_title: str):
@@ -92,9 +92,9 @@ def plot_table(table, fig_title: str):
             header=dict(values=list(table.columns),
                         line_color='darkslategray',  # 线条和填充色
                         fill_color='royalblue',
-                        font=dict(color='white', size=10),
+                        font=dict(color='white', size=20),
                         align='center',
-                        height=50),
+                        height=80),
             cells=dict(values=table.T,
                        fill_color='lavender',
                        font_size=20,
@@ -173,7 +173,7 @@ def kernel(dist_matrix: pd.DataFrame, trace_name='a'):
 def plot_exposure(valid_number_matrix, dist_matrix, dist_mad_matrix):
     with st.container():
         st.header("因子暴露")
-        col1, col2 = st.columns(2)
+        col1, col1_2,col2 = st.columns(3)
         with col1:
             fig = px.bar(data_frame=valid_number_matrix, x='index', y='valid_number_CAP')
             fig.update_layout(
