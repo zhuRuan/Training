@@ -79,7 +79,7 @@ def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame):
     annual_ret_3, sharp_3, maximum_draw_3 = annual_revenue(
         return_matrix=return_matrix.iloc[2 * int(len(return_matrix) / 3):, :])
     IC_mean = ic_df.mean(axis=0).round(3).iloc[0]
-    ICIR = IC_mean / ic_df.std(axis=0).round(3).iloc[0]
+    ICIR = np.round(IC_mean / ic_df.std(axis=0).iloc[0],3)
     return pd.DataFrame(
         {'因子名称': ['CAP', 'CAP', 'CAP'], '参数1': ['', '', ''], '参数2': ['', '', ''], '科目类别': list(return_matrix.columns),
          '年化收益率 （全时期）': annual_ret, '夏普比率 （全时期）': sharp, '最大回撤率 （全时期）': maximum_draw, '年化收益率 （前2/3时期）': annual_ret_2,
