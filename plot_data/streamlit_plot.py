@@ -144,13 +144,13 @@ def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix):
             x=return_matrix.index,
             y=return_matrix['Long_top'],
             mode='lines',  # 模式
-            name='long_top_return'
+            name='long_top'
         ))
         fig.add_trace(go.Scatter(
             x=return_matrix.index,
             y=return_matrix['Long_bottom'],
             mode='lines',  # 模式
-            name='long_bottom_return'
+            name='long_bottom'
         ))
         st.plotly_chart(figure_or_data=fig)  # 折线图
 
@@ -203,12 +203,10 @@ def plot_exposure(valid_number_matrix, dist_matrix, dist_mad_matrix):
                 title='因子分布',  # 整个图的标题
                 title_font_size=25,
                 xaxis=dict(
-                    title='数量',
                     title_font_size=20,
                     tickfont_size=20  # x轴字体大小
                 ),
                 yaxis=dict(
-                    title='因子值',
                     title_font_size=20,
                     tickfont_size=20
                 ),
