@@ -22,6 +22,7 @@ def get_matrices(rows, columns, lag: int):
 
 # 生成三个矩阵(dataframe)：收益率，是否为指定成分股的dummy，最新市值
 def run_back_testing(lamda=0.2, boxes=3, lag=1, rows=30, columns=30):
+
     ret, dummy, CAP = get_matrices(rows, columns, lag)
 
     # 数组运算
@@ -30,13 +31,11 @@ def run_back_testing(lamda=0.2, boxes=3, lag=1, rows=30, columns=30):
     # print("持仓矩阵：")
     # print(portfolio)
 
-    # 净值曲线展示
-    plot_return(total_return_matrix=(ret_total + 1).cumprod(), top_return_matrix=(ret_top + 1).cumprod(),
-                bottom_return_matrix=(ret_bot + 1).cumprod())
+
 
     # 因子暴露
     valid_number_matrix, dist_matrix, dist_mad_matrix = exposure(CAP)
-    plot_exposure(valid_number_matrix=valid_number_matrix, dist_matrix=dist_matrix, dist_mad_matrix=dist_mad_matrix)
+
 
     # 单调性
     lag_list = [1,5,20]
@@ -52,4 +51,10 @@ def run_back_testing(lamda=0.2, boxes=3, lag=1, rows=30, columns=30):
             ic = _ic
         ic_cum_list.append(_ic_cum)
         mono_dist_list.append(_mono_dist)
+    # 净值曲线展示
+    plot_return(total_return_matrix=(ret_total + 1).cumprod(), top_return_matrix=(ret_top + 1).cumprod(),
+                bottom_return_matrix=(ret_bot + 1).cumprod(), ic_df = ic)
+    #因子暴露展示
+    plot_exposure(valid_number_matrix=valid_number_matrix, dist_matrix=dist_matrix, dist_mad_matrix=dist_mad_matrix)
+    #单调性展示
     plot_monotonicity(mono_dist=mono_dist_list, ic_list=ic, ic_cum_list=ic_cum_list, lag=_lag)

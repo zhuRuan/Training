@@ -70,7 +70,7 @@ def annual_revenue(return_matrix: pd.DataFrame):
 
 
 @st.cache_data
-def table_return(return_matrix: pd.DataFrame):
+def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame):
     '''生成三个部分的收益分析表格'''
 
     annual_ret, sharp, maximum_draw = annual_revenue(return_matrix=return_matrix)
@@ -78,13 +78,14 @@ def table_return(return_matrix: pd.DataFrame):
         return_matrix=return_matrix.iloc[:2 * int(len(return_matrix) / 3), :])
     annual_ret_3, sharp_3, maximum_draw_3 = annual_revenue(
         return_matrix=return_matrix.iloc[2 * int(len(return_matrix) / 3):, :])
-
+    IC_mean = ic_df.mean(axis=0)
+    ICIR = IC_mean / ic_df.std(axis=0)
     return pd.DataFrame(
         {'因子名称': ['CAP', 'CAP', 'CAP'], '参数1': ['', '', ''], '参数2': ['', '', ''], '科目类别': list(return_matrix.columns),
-         '年化收益率（全时期）': annual_ret, '夏普比率（全时期）': sharp, '最大回撤率（全时期）': maximum_draw, '年化收益率（前2/3时期）': annual_ret_2,
-         '夏普比率（前2/3时期）': sharp_2, '最大回撤率（前2/3时期）': maximum_draw_2, '年化收益率（后1/3时期）': annual_ret_3,
-         '夏普比率（后1/3时期）': sharp_3,
-         '最大回撤率（后1/3时期）': maximum_draw_3, })
+         '年化收益率 （全时期）': annual_ret, '夏普比率 （全时期）': sharp, '最大回撤率 （全时期）': maximum_draw, '年化收益率 （前2/3时期）': annual_ret_2,
+         '夏普比率 （前2/3时期）': sharp_2, '最大回撤率 （前2/3时期）': maximum_draw_2, '年化收益率 （后1/3时期）': annual_ret_3,
+         '夏普比率 （后1/3时期）': sharp_3, '最大回撤率 （后1/3时期）': maximum_draw_3, 'IC值': [IC_mean, IC_mean, IC_mean],
+         'ICIR': [ICIR, ICIR, ICIR]})
 
 
 def plot_table(table, fig_title: str):
@@ -111,7 +112,7 @@ def plot_table(table, fig_title: str):
 
 
 @st.cache_data
-def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix):
+def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix, ic_df):
     with st.container():
         st.header("组合收益分析")
         return_matrix = pd.DataFrame([total_return_matrix, top_return_matrix, bottom_return_matrix]).T
@@ -155,7 +156,13 @@ def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix):
         st.plotly_chart(figure_or_data=fig)  # 折线图
 
         # 收益表格
-        table = table_return(return_matrix)
+        table = table_return(return_matrix, ic_df)
+
+        # pickle表格
+        pickle_path = 'pickle_data/'+  str(list(table['因子名称'])[0]) + str('.zip')
+        table.to_pickle(pickle_path)
+
+        # 展示表格
         plot_table(table, '收益表格')
 
     space(4)
@@ -235,7 +242,7 @@ def plot_monotonicity(mono_dist, ic_list, ic_cum_list, lag):
                     tickfont_size=20  # x轴字体大小
                 ),
                 yaxis=dict(
-                    title='收益率',
+                    title='收益率（去均值后）',
                     title_font_size=20,
                     tickfont_size=20
                 ),
@@ -252,7 +259,7 @@ def plot_monotonicity(mono_dist, ic_list, ic_cum_list, lag):
                     tickfont_size=20  # x轴字体大小
                 ),
                 yaxis=dict(
-                    title='收益率',
+                    title='收益率（去均值后）',
                     title_font_size=20,
                     tickfont_size=20
                 ),
@@ -269,7 +276,7 @@ def plot_monotonicity(mono_dist, ic_list, ic_cum_list, lag):
                     tickfont_size=20  # x轴字体大小
                 ),
                 yaxis=dict(
-                    title='收益率',
+                    title='收益率（去均值后）',
                     title_font_size=20,
                     tickfont_size=20
                 ),
