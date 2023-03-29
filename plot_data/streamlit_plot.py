@@ -92,7 +92,7 @@ def plot_table(table, fig_title: str):
             header=dict(values=list(table.columns),
                         line_color='darkslategray',  # 线条和填充色
                         fill_color='royalblue',
-                        font=dict(color='white', size=20),
+                        font=dict(color='white', size=10),
                         align='center',
                         height=50),
             cells=dict(values=table.T,
