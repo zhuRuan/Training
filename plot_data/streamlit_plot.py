@@ -62,10 +62,10 @@ def annual_revenue(return_matrix: pd.DataFrame):
     std_list = return_matrix.std(axis=0)
     return_series = return_matrix.iloc[-1, :]
     annualized_rate_of_return = pd.Series(
-        ((np.sign(return_series.values) * np.power(abs(return_series.values), 250 / len(return_matrix))) - 1).round(2))
+        ((np.sign(return_series.values) * np.power(abs(return_series.values), 250 / len(return_matrix))) - 1).round(3))
     return_series = return_series - 1
-    sharp_series = (return_series / std_list).round(2)
-    maximum_drawdown_series = pd.Series(MaxDrawdown_protfolio(return_matrix)).round(2)
+    sharp_series = (return_series / std_list).round(3)
+    maximum_drawdown_series = pd.Series(MaxDrawdown_protfolio(return_matrix)).round(3)
     return annualized_rate_of_return.values, sharp_series.values, maximum_drawdown_series.values
 
 
@@ -78,8 +78,8 @@ def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame):
         return_matrix=return_matrix.iloc[:2 * int(len(return_matrix) / 3), :])
     annual_ret_3, sharp_3, maximum_draw_3 = annual_revenue(
         return_matrix=return_matrix.iloc[2 * int(len(return_matrix) / 3):, :])
-    IC_mean = ic_df.mean(axis=0).round(2)
-    ICIR = IC_mean / ic_df.std(axis=0).round(2)
+    IC_mean = ic_df.mean(axis=0).round(3).iloc[0]
+    ICIR = IC_mean / ic_df.std(axis=0).round(3).iloc[0]
     return pd.DataFrame(
         {'因子名称': ['CAP', 'CAP', 'CAP'], '参数1': ['', '', ''], '参数2': ['', '', ''], '科目类别': list(return_matrix.columns),
          '年化收益率 （全时期）': annual_ret, '夏普比率 （全时期）': sharp, '最大回撤率 （全时期）': maximum_draw, '年化收益率 （前2/3时期）': annual_ret_2,
