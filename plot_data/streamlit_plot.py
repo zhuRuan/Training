@@ -80,11 +80,10 @@ def table_return(return_matrix: pd.DataFrame):
         return_matrix=return_matrix.iloc[2 * int(len(return_matrix) / 3):, :])
 
     return pd.DataFrame(
-        {'科目类别': list(return_matrix.columns), '夏普比率': sharp, '年化收益率': annual_ret, '最大回撤率': maximum_draw}), \
-           pd.DataFrame(
-               {'科目类别': list(return_matrix.columns), '夏普比率': sharp_2, '年化收益率': annual_ret_2, '最大回撤率': maximum_draw_2}), \
-           pd.DataFrame(
-               {'科目类别': list(return_matrix.columns), '夏普比率': sharp_3, '年化收益率': annual_ret_3, '最大回撤率': maximum_draw_3})
+        {'因子名称': ['CAP', 'CAP', 'CAP'], '参数1': ['', '', ''], '参数2': ['', '', ''], '科目类别': list(return_matrix.columns),
+         '年化收益率（全时期）': annual_ret, '夏普比率（全时期）': sharp, '最大回撤率（全时期）': maximum_draw, '年化收益率（前2/3时期）': annual_ret_2,
+         '夏普比率（前2/3时期）': sharp_2, '最大回撤率（前2/3时期）': maximum_draw_2, '年化收益率（后1/3时期）': annual_ret_3, '夏普比率（后1/3时期）': sharp_3,
+         '最大回撤率（后1/3时期）': maximum_draw_3, })
 
 
 def plot_table(table, fig_title: str):
@@ -115,7 +114,7 @@ def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix):
     with st.container():
         st.header("组合收益分析")
         return_matrix = pd.DataFrame([total_return_matrix, top_return_matrix, bottom_return_matrix]).T
-        return_matrix.columns = ['LT_SB', "Long_top_return", "Long_bottom_return"]
+        return_matrix.columns = ['LT_SB', "Long_top", "Long_bottom"]
         fig = go.Figure()
         fig.update_layout(width=1600,
                           title='收益曲线',

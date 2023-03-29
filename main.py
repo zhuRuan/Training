@@ -10,11 +10,9 @@ if __name__ == '__main__':
     boxes = 10
     lamda = 0.2
     lag = 1
-    rows = 1000
+    rows = 100
     columns = 500
     np.random.seed(3)
     run_back_testing(lamda, boxes, lag, rows, columns)
-
-    #
 
 # 访问 https://www.jetbrains.com/help/pycharm/ 获取 PyCharm 帮助
