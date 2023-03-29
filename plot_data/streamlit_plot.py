@@ -81,9 +81,10 @@ def table_return(return_matrix: pd.DataFrame):
 
     return pd.DataFrame(
         {'因子名称': ['CAP', 'CAP', 'CAP'], '参数1': ['', '', ''], '参数2': ['', '', ''], '科目类别': list(return_matrix.columns),
-         '年化收益率<br />（全时期）': annual_ret, '夏普比率<br />（全时期）': sharp, '最大回撤率<br />（全时期）': maximum_draw, '年化收益率<br />（前2/3时期）': annual_ret_2,
-         '夏普比率<br />（前2/3时期）': sharp_2, '最大回撤率<br />（前2/3时期）': maximum_draw_2, '年化收益率<br />（后1/3时期）': annual_ret_3, '夏普比率<br />（后1/3时期）': sharp_3,
-         '最大回撤率<br />（后1/3时期）': maximum_draw_3, })
+         '年化收益率（全时期）': annual_ret, '夏普比率（全时期）': sharp, '最大回撤率（全时期）': maximum_draw, '年化收益率（前2/3时期）': annual_ret_2,
+         '夏普比率（前2/3时期）': sharp_2, '最大回撤率（前2/3时期）': maximum_draw_2, '年化收益率（后1/3时期）': annual_ret_3,
+         '夏普比率（后1/3时期）': sharp_3,
+         '最大回撤率（后1/3时期）': maximum_draw_3, })
 
 
 def plot_table(table, fig_title: str):
@@ -102,7 +103,7 @@ def plot_table(table, fig_title: str):
                        height=40)
         )]
     )
-    fig.update_layout(width=1600,
+    fig.update_layout(width=1700,
                       title=fig_title,  # 整个图的标题
                       title_font_size=25,
                       )
@@ -173,7 +174,7 @@ def kernel(dist_matrix: pd.DataFrame, trace_name='a'):
 def plot_exposure(valid_number_matrix, dist_matrix, dist_mad_matrix):
     with st.container():
         st.header("因子暴露")
-        col1, col1_2,col2 = st.columns(3)
+        col1, col2 = st.columns(2)
         with col1:
             fig = px.bar(data_frame=valid_number_matrix, x='index', y='valid_number_CAP')
             fig.update_layout(
@@ -224,35 +225,79 @@ def plot_exposure(valid_number_matrix, dist_matrix, dist_mad_matrix):
 def plot_monotonicity(mono_dist, ic_list, ic_cum_list, lag):
     with st.container():
         st.header("单调性")
-        st.subheader('滞后期数' + str(lag))
-        fig = px.bar(data_frame=mono_dist, x='boxes', y=['return_rate'])
-        fig.update_layout(
-            title='因子分层单调性',  # 整个图的标题
-            title_font_size=25,
-            xaxis=dict(
-                title='盒子标签',
-                title_font_size=20,
-                tickfont_size=20  # x轴字体大小
-            ),
-            yaxis=dict(
-                title='收益率',
-                title_font_size=20,
-                tickfont_size=20
-            ),
-        )
-        st.plotly_chart(figure_or_data=fig)
-
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            fig = px.bar(data_frame=mono_dist[0], x='boxes', y=['return_rate_minus_mean'])
+            fig.update_layout(
+                title='因子分层单调性_滞后一期',  # 整个图的标题
+                title_font_size=25,
+                xaxis=dict(
+                    title='盒子标签',
+                    title_font_size=20,
+                    tickfont_size=20  # x轴字体大小
+                ),
+                yaxis=dict(
+                    title='收益率',
+                    title_font_size=20,
+                    tickfont_size=20
+                ),
+            )
+            st.plotly_chart(figure_or_data=fig)
+        with col2:
+            fig = px.bar(data_frame=mono_dist[1], x='boxes', y=['return_rate_minus_mean'])
+            fig.update_layout(
+                title='因子分层单调性_滞后五期',  # 整个图的标题
+                title_font_size=25,
+                xaxis=dict(
+                    title='盒子标签',
+                    title_font_size=20,
+                    tickfont_size=20  # x轴字体大小
+                ),
+                yaxis=dict(
+                    title='收益率',
+                    title_font_size=20,
+                    tickfont_size=20
+                ),
+            )
+            st.plotly_chart(figure_or_data=fig)
+        with col3:
+            fig = px.bar(data_frame=mono_dist[2], x='boxes', y=['return_rate_minus_mean'])
+            fig.update_layout(
+                title='因子分层单调性_滞后二十期',  # 整个图的标题
+                title_font_size=25,
+                xaxis=dict(
+                    title='盒子标签',
+                    title_font_size=20,
+                    tickfont_size=20  # x轴字体大小
+                ),
+                yaxis=dict(
+                    title='收益率',
+                    title_font_size=20,
+                    tickfont_size=20
+                ),
+            )
+            st.plotly_chart(figure_or_data=fig)
         trace1 = go.Bar(
             x=list(ic_list.index),
             y=ic_list['IC_CAP'],
             name='IC值'
         )
         trace2 = go.Scatter(
-            x=list(ic_cum_list.index),
-            y=ic_cum_list['IC_CUM_CAP'],
-            name='IC累计值'
+            x=list(ic_cum_list[0].index),
+            y=ic_cum_list[0]['IC_CUM_CAP'],
+            name='IC累计值_L1'
         )
-        data = [trace1, trace2]
+        trace3 = go.Scatter(
+            x=list(ic_cum_list[1].index),
+            y=ic_cum_list[1]['IC_CUM_CAP'],
+            name='IC累计值_L5'
+        )
+        trace4 = go.Scatter(
+            x=list(ic_cum_list[2].index),
+            y=ic_cum_list[2]['IC_CUM_CAP'],
+            name='IC累计值_L20'
+        )
+        data = [trace1, trace2, trace3, trace4]
         layout = go.Layout({"template": 'simple_white',
                             "title": {"text": 'IC值与IC累计值'}, 'title_font_size': 25,
                             "xaxis": {"title": {"text": "期数"}, "title_font_size": 20, "tickfont_size": 20},

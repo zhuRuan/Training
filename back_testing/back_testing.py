@@ -40,9 +40,16 @@ def run_back_testing(lamda=0.2, boxes=3, lag=1, rows=30, columns=30):
 
     # 单调性
     lag_list = [1,5,20]
+    ic = 0
+    ic_cum_list = []
+    mono_dist_list = []
     for _lag in lag_list :
         factor_matrix = CAP[dummy].iloc[:-_lag, :]
         ret_matrix = (ret[dummy]+1).rolling(lag).apply(np.prod) -1
-        ic, ic_cum, _mono_dist = monotonicity(factor=factor_matrix, ret=ret_matrix.iloc[_lag:, :],
+        _ic, _ic_cum, _mono_dist = monotonicity(factor=factor_matrix, ret=ret_matrix.iloc[_lag:, :],
                                               ret_df=ret_list)
-        plot_monotonicity(mono_dist=_mono_dist, ic_list=ic, ic_cum_list=ic_cum, lag=_lag)
+        if _lag == 1:
+            ic = _ic
+        ic_cum_list.append(_ic_cum)
+        mono_dist_list.append(_mono_dist)
+    plot_monotonicity(mono_dist=mono_dist_list, ic_list=ic, ic_cum_list=ic_cum_list, lag=_lag)

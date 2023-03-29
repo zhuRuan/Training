@@ -1,3 +1,4 @@
+import pandas
 import pandas as pd
 import numpy as np
 
@@ -29,12 +30,13 @@ def calculate_ic(factor: pd.DataFrame, ret: pd.DataFrame):
     return ic_df
 
 
-def mono_dist(ret_df):
+def mono_dist(ret_df: pandas.DataFrame):
     # 计算加总
     ret_cum_df = (ret_df + 1).cumprod().iloc[-1]
     ret_cum_df = ret_cum_df.to_frame()
     ret_cum_df['boxes'] = ret_cum_df.index
-    ret_cum_df.columns = ['return_rate', 'boxes']
+    ret_cum_df.columns = ['return_rate_minus_mean', 'boxes']
+    ret_cum_df['return_rate_minus_mean'] = ret_cum_df['return_rate_minus_mean'] - ret_cum_df['return_rate_minus_mean'].mean()
 
     return ret_cum_df
 
