@@ -145,13 +145,13 @@ def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix, ic
             x=return_matrix.index,
             y=return_matrix['Long_top'],
             mode='lines',  # 模式
-            name='long_top'
+            name='Long_top'
         ))
         fig.add_trace(go.Scatter(
             x=return_matrix.index,
             y=return_matrix['Long_bottom'],
             mode='lines',  # 模式
-            name='long_bottom'
+            name='Long_bottom'
         ))
         st.plotly_chart(figure_or_data=fig)  # 折线图
 
