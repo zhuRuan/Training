@@ -46,7 +46,7 @@ def run_back_testing(lamda=0.2, boxes=3, lag=1, rows=30, columns=30):
         else:
             factor_matrix = CAP[dummy].iloc[:, :]
         ret_matrix = (ret[dummy]+1).rolling(_lag).apply(np.prod) -1
-        ret_boxes_matrix = (ret_boxes_df[dummy] + 1).rolling(_lag).apply(np.prod) - 1
+        ret_boxes_matrix = (ret_boxes_df + 1).rolling(_lag).apply(np.prod) - 1
         _ic, _ic_cum, _mono_dist = monotonicity(factor=factor_matrix, ret=ret_matrix.iloc[(_lag-1):, :],
                                               ret_df=ret_boxes_matrix)
         if _lag == 1:
