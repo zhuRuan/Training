@@ -26,12 +26,10 @@ def run_back_testing(lamda=0.2, boxes=3, lag=1, rows=30, columns=30):
     ret, dummy, CAP = get_matrices(rows, columns, lag)
 
     # 数组运算
-    portfolio, ret_total, ret_list, ret_top, ret_bot = computing(ret, dummy, CAP, lamda, boxes)
+    portfolio, ret_total, ret_boxes_df, ret_top, ret_bot = computing(ret, dummy, CAP, lamda, boxes)
 
     # print("持仓矩阵：")
     # print(portfolio)
-
-
 
     # 因子暴露
     valid_number_matrix, dist_matrix, dist_mad_matrix = exposure(CAP)
@@ -43,10 +41,14 @@ def run_back_testing(lamda=0.2, boxes=3, lag=1, rows=30, columns=30):
     ic_cum_list = []
     mono_dist_list = []
     for _lag in lag_list :
-        factor_matrix = CAP[dummy].iloc[:-_lag, :]
+        if _lag != 1:
+            factor_matrix = CAP[dummy].iloc[:-(_lag-1), :]
+        else:
+            factor_matrix = CAP[dummy].iloc[:, :]
         ret_matrix = (ret[dummy]+1).rolling(_lag).apply(np.prod) -1
-        _ic, _ic_cum, _mono_dist = monotonicity(factor=factor_matrix, ret=ret_matrix.iloc[_lag:, :],
-                                              ret_df=ret_list)
+        ret_boxes_matrix = (ret_boxes_df[dummy] + 1).rolling(_lag).apply(np.prod) - 1
+        _ic, _ic_cum, _mono_dist = monotonicity(factor=factor_matrix, ret=ret_matrix.iloc[(_lag-1):, :],
+                                              ret_df=ret_boxes_matrix)
         if _lag == 1:
             ic = _ic
         ic_cum_list.append(_ic_cum)

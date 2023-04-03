@@ -5,7 +5,6 @@ from back_testing.back_testing import run_back_testing
 from datetime import datetime as dt
 import datetime
 
-
 # 按间距中的绿色按钮以运行脚本。
 if __name__ == '__main__':
     boxes = 10
