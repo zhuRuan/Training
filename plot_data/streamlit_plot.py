@@ -56,7 +56,6 @@ def MaxDrawdown_protfolio(return_matrix: pd.DataFrame):
     return MaxDrawdown_list
 
 
-@st.cache_data
 def annual_revenue(return_matrix: pd.DataFrame):
     '''计算年化收益率、夏普比率、最大回撤'''
     std_list = return_matrix.std(axis=0)
@@ -69,7 +68,6 @@ def annual_revenue(return_matrix: pd.DataFrame):
     return annualized_rate_of_return.values, sharp_series.values, maximum_drawdown_series.values
 
 
-@st.cache_data
 def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame):
     '''生成三个部分的收益分析表格'''
 
@@ -111,7 +109,6 @@ def plot_table(table, fig_title: str):
     st.plotly_chart(figure_or_data=fig)
 
 
-@st.cache_data
 def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix, ic_df):
     with st.container():
         st.header("组合收益分析")
@@ -168,7 +165,7 @@ def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix, ic
     space(4)
 
 
-@st.cache_data
+
 def kernel(dist_matrix: pd.DataFrame, trace_name='a'):
     x_range = linspace(min(dist_matrix['CAP']), max(dist_matrix['CAP']), len(dist_matrix['CAP']))
     kde = gaussian_kde(dist_matrix['CAP'])
@@ -177,7 +174,6 @@ def kernel(dist_matrix: pd.DataFrame, trace_name='a'):
     return trace
 
 
-@st.cache_data
 def plot_exposure(valid_number_matrix, dist_matrix, dist_mad_matrix):
     with st.container():
         st.header("因子暴露")
@@ -226,7 +222,7 @@ def plot_exposure(valid_number_matrix, dist_matrix, dist_mad_matrix):
     space(4)
 
 
-@st.cache_data
+
 def plot_monotonicity(mono_dist, ic_list, ic_cum_list, lag):
     with st.container():
         st.header("单调性")

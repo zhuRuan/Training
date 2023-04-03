@@ -21,7 +21,6 @@ def get_matrices(rows, columns, lag: int):
 
 
 # 生成三个矩阵(dataframe)：收益率，是否为指定成分股的dummy，最新市值
-@st.cache_resource
 def run_back_testing(lamda=0.2, boxes=3, lag=1, rows=30, columns=30):
 
     ret, dummy, CAP = get_matrices(rows, columns, lag)
