@@ -23,6 +23,10 @@ if first_visit:
     st.session_state.date_time = datetime.datetime.now() + datetime.timedelta(
         hours=8)  # Streamlit Cloud的时区是UTC，加8小时即北京时间
     st.balloons()  # 第一次访问时才会放气
+st.write("")
+st.write("")
+st.write("")
+st.write("")
 
 
 def space(num_lines=1):  # 空格
