@@ -13,6 +13,7 @@ if __name__ == '__main__':
     rows = 100
     columns = 500
     np.random.seed(3)
+
     run_back_testing(lamda, boxes, lag, rows, columns)
 
 
