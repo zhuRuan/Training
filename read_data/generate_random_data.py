@@ -48,4 +48,16 @@ def CAP_matrix(rows=50, columns=30):
     CAP[CAP < 30] = 30
     return CAP
 
-# print(dummy_matrix())
+def volatility_matrix(rows=50, columns=30):
+    # 生成波动矩阵
+    df1 = pd.DataFrame(np.random.normal(1000, 300, (round(rows / 2), columns - 2)))
+    df1[len(df1.columns)] = df1[3]
+    df1[len(df1.columns)] = df1[3]
+    df2 = pd.DataFrame(np.random.normal(1000, 300, (round(rows / 2), columns - 3)))
+    df2[len(df2.columns)] = df2[3]
+    df2[len(df2.columns)] = df2[3]
+    df2[len(df2.columns)] = df2[3]
+    VOL = pd.concat((df1, df2), axis=0, ignore_index=True)
+    VOL.reindex()
+    VOL[VOL < 30] = 30
+    return VOL

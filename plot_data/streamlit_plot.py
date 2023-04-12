@@ -159,9 +159,9 @@ def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix, ic
         # 收益表格
         table = table_return(return_matrix, ic_df)
 
-        # pickle表格
-        pickle_path = 'pickle_data/'+  str(list(table['因子名称'])[0]) +str(datetime.datetime.now().strftime("%Y-%m-%d_%H_%M")) + str('.zip')
-        table.to_pickle(pickle_path)
+        # # pickle表格
+        # pickle_path = 'pickle_data\\'+  str(list(table['因子名称'])[0]) +str(datetime.datetime.now().strftime("%Y-%m-%d_%H_%M")) + str('.zip')
+        # table.to_pickle(pickle_path)
 
         # 展示表格
         plot_table(table, '收益表格')

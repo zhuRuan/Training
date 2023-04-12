@@ -1,7 +1,7 @@
 import pandas as pd
 
 from read_data.generate_random_data import *
-from process_data.return_rate import computing
+from process_data.return_rate import computing, computing2
 from plot_data.streamlit_plot import *
 from process_data.exposure import exposure
 from process_data.monotonicity import monotonicity
@@ -10,34 +10,25 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-st.set_page_config(layout="wide", page_icon="🧊", page_title="回测结果展示")
-st.title("回测结果展示")
-st.markdown('当前源代码更新日期为：**:blue[2023年4月3日]**', unsafe_allow_html=False)
-sidebar = st.sidebar
-now_time = dt.now()
-
-if 'first_visit' not in st.session_state:
-    first_visit = True
-else:
-    first_visit = False
-# 初始化全局配置
-if first_visit:
-    st.session_state.date_time = datetime.datetime.now() + datetime.timedelta(
-        hours=8)  # Streamlit Cloud的时区是UTC，加8小时即北京时间
-    st.balloons()  # 第一次访问时才会放气
-st.write("")
-st.write("")
-st.write("")
-st.write("")
 
 
 @st.cache_resource
-def get_matrices(rows, columns, lag: int):
+def get_matrices(rows, columns):
     # 生成三个矩阵，分别是收益率、成分股归属、市值
     ret = return_rate_matrix(rows, columns)
     dummy = dummy_matrix(rows, columns)
     CAP = CAP_matrix(rows, columns)
     return ret, dummy, CAP
+
+@st.cache_resource
+def get_matrices2(rows, columns):
+    # 生成三个矩阵，分别是收益率、成分股归属、市值
+    ret = return_rate_matrix(rows, columns)
+    dummy = dummy_matrix(rows, columns)
+    CAP = CAP_matrix(rows, columns)
+    VOL = volatility_matrix(rows, columns)
+    return ret, dummy, CAP, VOL
+
 
 
 # 生成三个矩阵(dataframe)：收益率，是否为指定成分股的dummy，最新市值
@@ -80,3 +71,45 @@ def run_back_testing(lamda=0.2, boxes=3, lag=1, rows=30, columns=30):
     plot_exposure(valid_number_matrix=valid_number_matrix, dist_matrix=dist_matrix, dist_mad_matrix=dist_mad_matrix)
     #单调性展示
     plot_monotonicity(mono_dist=mono_dist_list, ic_list=ic, ic_cum_list=ic_cum_list, lag=_lag)
+
+# 生成四个矩阵(dataframe)：收益率，是否为指定成分股的dummy，市值， 波动率
+def run_back_testing_new(lamda=0.2, boxes=3, lag=1, rows=30, columns=30):
+
+    ret, dummy, CAP, VOL = get_matrices2(rows, columns)
+
+    # 数组运算
+    portfolio, ret_total, ret_boxes_df, ret_top, ret_bot = computing2(ret, dummy, CAP, VOL,  lamda, boxes, trl=30)
+
+    # print("持仓矩阵：")
+    # print(portfolio)
+
+    # 因子暴露
+    valid_number_matrix, dist_matrix, dist_mad_matrix = exposure(CAP)
+
+
+    # 单调性
+    lag_list = [1,5,20]
+    ic = 0
+    ic_cum_list = []
+    mono_dist_list = []
+    for _lag in lag_list :
+        if _lag != 1:
+            factor_matrix = CAP[dummy].iloc[:-(_lag-1), :]
+        else:
+            factor_matrix = CAP[dummy].iloc[:, :]
+        ret_matrix = (ret[dummy]+1).rolling(_lag).apply(np.prod) -1
+        ret_boxes_matrix = (ret_boxes_df + 1).rolling(_lag).apply(np.prod) - 1
+        _ic, _ic_cum, _mono_dist = monotonicity(factor=factor_matrix, ret=ret_matrix.iloc[(_lag-1):, :],
+                                              ret_df=ret_boxes_matrix)
+        if _lag == 1:
+            ic = _ic
+        ic_cum_list.append(_ic_cum)
+        mono_dist_list.append(_mono_dist)
+    # 净值曲线展示
+    plot_return(total_return_matrix=(ret_total + 1).cumprod(), top_return_matrix=(ret_top + 1).cumprod(),
+                bottom_return_matrix=(ret_bot + 1).cumprod(), ic_df = ic)
+    #因子暴露展示
+    plot_exposure(valid_number_matrix=valid_number_matrix, dist_matrix=dist_matrix, dist_mad_matrix=dist_mad_matrix)
+    #单调性展示
+    plot_monotonicity(mono_dist=mono_dist_list, ic_list=ic, ic_cum_list=ic_cum_list, lag=_lag)
+
