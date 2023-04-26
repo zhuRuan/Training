@@ -1,8 +1,11 @@
+import pickle
+
 import pandas as pd
 import numpy as np
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
+import os
 from numpy import linspace
 from scipy.stats.kde import gaussian_kde
 from datetime import datetime as dt
@@ -10,9 +13,10 @@ import datetime
 
 st.set_page_config(layout="wide", page_icon="🧊", page_title="回测结果展示")
 st.title("回测结果展示")
-st.markdown('当前源代码更新日期为：**:blue[2023年4月3日]**', unsafe_allow_html=False)
+st.markdown('当前源代码更新日期为：**:blue[2023年4月26日]**', unsafe_allow_html=False)
 sidebar = st.sidebar
 now_time = dt.now()
+
 
 if 'first_visit' not in st.session_state:
     first_visit = True
@@ -37,7 +41,6 @@ def space(num_lines=1):  # 空格
 
 space(5)
 
-
 def MaxDrawdown(return_list):
     '''最大回撤率'''
     matrix = return_list.copy().reset_index(drop=True)
@@ -46,19 +49,21 @@ def MaxDrawdown(return_list):
     if i == 0:
         return 0
     j = np.argmax(matrix[:i])  # 开始位置
-    num = (matrix[j] - matrix[i]) / matrix[j]
+    if not matrix.empty:
+        num = (matrix[j] - matrix[i]) / matrix[j]
+    else:
+        num = 0
     return num
 
 
 def MaxDrawdown_protfolio(return_matrix: pd.DataFrame):
-    MaxDrawdown_dict = {}
-    MaxDrawdown_list = []
+    maxDrawdown_dict = {}
+    maxDrawdown_list = []
     for column in list(return_matrix.columns):
         MaxDrawdown_num = MaxDrawdown(return_matrix[column])
-        MaxDrawdown_dict[column] = MaxDrawdown_num
-        MaxDrawdown_list.append(MaxDrawdown_num)
-    return MaxDrawdown_list
-
+        maxDrawdown_dict[column] = MaxDrawdown_num
+        maxDrawdown_list.append(MaxDrawdown_num)
+    return maxDrawdown_list
 
 def annual_revenue(return_matrix: pd.DataFrame):
     '''计算年化收益率、夏普比率、最大回撤'''
@@ -71,8 +76,7 @@ def annual_revenue(return_matrix: pd.DataFrame):
     maximum_drawdown_series = pd.Series(MaxDrawdown_protfolio(return_matrix)).round(3)
     return annualized_rate_of_return.values, sharp_series.values, maximum_drawdown_series.values
 
-
-def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame):
+def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method):
     '''生成三个部分的收益分析表格'''
 
     annual_ret, sharp, maximum_draw = annual_revenue(return_matrix=return_matrix)
@@ -81,13 +85,24 @@ def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame):
     annual_ret_3, sharp_3, maximum_draw_3 = annual_revenue(
         return_matrix=return_matrix.iloc[2 * int(len(return_matrix) / 3):, :])
     IC_mean = ic_df.mean(axis=0).round(3).iloc[0]
-    ICIR = np.round(IC_mean / ic_df.std(axis=0).iloc[0],3)
+    ICIR = np.round(IC_mean / ic_df.std(axis=0).iloc[0], 3)
     return pd.DataFrame(
-        {'因子名称': ['CAP', 'CAP', 'CAP'], '参数1': ['', '', ''], '参数2': ['', '', ''], '科目类别': list(return_matrix.columns),
+        {'因子名称': ['CAP', 'CAP', 'CAP'], '参数1': [method, method, method], '参数2': ['', '', ''],
+         '科目类别': list(return_matrix.columns),
          '年化收益率 （全时期）': annual_ret, '夏普比率 （全时期）': sharp, '最大回撤率 （全时期）': maximum_draw, '年化收益率 （前2/3时期）': annual_ret_2,
          '夏普比率 （前2/3时期）': sharp_2, '最大回撤率 （前2/3时期）': maximum_draw_2, '年化收益率 （后1/3时期）': annual_ret_3,
          '夏普比率 （后1/3时期）': sharp_3, '最大回撤率 （后1/3时期）': maximum_draw_3, 'IC值': [IC_mean, IC_mean, IC_mean],
          'ICIR': [ICIR, ICIR, ICIR]})
+
+def detail_table(total_return_matrix, top_return_matrix, bottom_return_matrix, ic_df, method = ''):
+    return_matrix = pd.DataFrame([total_return_matrix, top_return_matrix, bottom_return_matrix]).T
+    return_matrix.columns = ['LT_SB', "Long_top", "Long_bottom"]
+    # 收益表格
+    table = table_return(return_matrix, ic_df, method)
+    return table, return_matrix
+
+def selectbox(calc_method):
+    option = st.selectbox('选择您要查看的因子', calc_method)
 
 
 def plot_table(table, fig_title: str):
@@ -113,11 +128,10 @@ def plot_table(table, fig_title: str):
     st.plotly_chart(figure_or_data=fig)
 
 
-def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix, ic_df):
+def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix, ic_df, method):
     with st.container():
         st.header("组合收益分析")
-        return_matrix = pd.DataFrame([total_return_matrix, top_return_matrix, bottom_return_matrix]).T
-        return_matrix.columns = ['LT_SB', "Long_top", "Long_bottom"]
+        table, return_matrix = detail_table(total_return_matrix, top_return_matrix, bottom_return_matrix, ic_df, method)
         fig = go.Figure()
         fig.update_layout(width=1600,
                           title='收益曲线',
@@ -156,9 +170,6 @@ def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix, ic
         ))
         st.plotly_chart(figure_or_data=fig)  # 折线图
 
-        # 收益表格
-        table = table_return(return_matrix, ic_df)
-
         # # pickle表格
         # pickle_path = 'pickle_data\\'+  str(list(table['因子名称'])[0]) +str(datetime.datetime.now().strftime("%Y-%m-%d_%H_%M")) + str('.zip')
         # table.to_pickle(pickle_path)
@@ -167,7 +178,6 @@ def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix, ic
         plot_table(table, '收益表格')
 
     space(4)
-
 
 
 def kernel(dist_matrix: pd.DataFrame, trace_name='a'):
@@ -224,7 +234,6 @@ def plot_exposure(valid_number_matrix, dist_matrix, dist_mad_matrix):
         #     fig = px.histogram(dist_mad_matrix, x="CAP_after_MAD")
         #     st.plotly_chart(figure_or_data=fig)
     space(4)
-
 
 
 def plot_monotonicity(mono_dist, ic_list, ic_cum_list, lag):
@@ -314,3 +323,36 @@ def plot_monotonicity(mono_dist, ic_list, ic_cum_list, lag):
         fig = go.Figure(data=data, layout=layout)
         st.plotly_chart(figure_or_data=fig)
     space(4)
+
+
+# 净值曲线展示
+path = 'D:\Ruiwen\PythonProject\Training\pickle_data'
+lists = os.listdir(path)
+first_name = ''
+file_name = st.selectbox('您想调取什么时间段的数据？', lists)
+if file_name != '':
+    with open(path + '\\' + file_name + '\\' + 'test.pkl', 'rb') as f:
+        data = pickle.load(f)
+        print(data)
+        # 选择需要的方法
+        key_list = []
+        for key in data.keys():
+            key_list.append(key)
+        method = st.selectbox("您想要观察的回测的方法是？", key_list)
+        ret_total = data[method]['ret_total']
+        ret_top = data[method]['ret_top']
+        ret_bot = data[method]['ret_bot']
+        ic = data[method]['ic_df']
+        valid_number_matrix = data[method]['valid_number_matrix']
+        dist_matrix = data[method]['dist_matrix']
+        dist_mad_matrix = data[method]['dist_mad_matrix']
+        mono_dist_list = data[method]['mono_dist']
+        ic_cum_list = data[method]['ic_cum_list']
+        _lag = data[method]['lag']
+        ret_matrix = data[method]['ret_matrix']
+        plot_return(total_return_matrix=(ret_total + 1).cumprod(), top_return_matrix=(ret_top + 1).cumprod(),
+                    bottom_return_matrix=(ret_bot + 1).cumprod(), ic_df=ic, method=method)
+        # 因子暴露展示
+        plot_exposure(valid_number_matrix=valid_number_matrix, dist_matrix=dist_matrix, dist_mad_matrix=dist_mad_matrix)
+        # 单调性展示
+        plot_monotonicity(mono_dist=mono_dist_list, ic_list=ic, ic_cum_list=ic_cum_list, lag=_lag)

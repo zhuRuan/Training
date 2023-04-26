@@ -45,7 +45,19 @@ def computing(ret: pd.DataFrame, dummy: pd.DataFrame, CAP: pd.DataFrame, lamda, 
     return m3, total_ret, ret_df, ret_top, ret_bot
 
 
-def computing2(ret_matrix: pd.DataFrame, dummy: pd.DataFrame, CAP: pd.DataFrame, VOL: pd.DataFrame, lamda, boxes, trl):
+def multi_thread_cp2(ret_matrix: pd.DataFrame, dummy: pd.DataFrame, CAP: pd.DataFrame, VOL: pd.DataFrame, lamda, boxes,
+                     trl):
+    output_list = computing_2(CAP, VOL, dummy, lamda, boxes, trl)
+    input_list = []
+    for output in output_list:
+        m3, m_top, m_bot, boxes_list, method = output
+        input_list.append((ret_matrix, dummy, CAP, VOL, lamda, boxes, trl, m3, m_top, m_bot, boxes_list, method))
+    with ThreadPoolExecutor(max_workers=None) as executor:
+        return executor.map(computing2, input_list)
+    # m3, m_top, m_bot, boxes_list = computing2(ret_matrix, dummy, CAP, VOL, lamda, boxes, trl, output_list)
+
+
+def computing2(_x):
     '''
     计算
     输入：
@@ -54,7 +66,8 @@ def computing2(ret_matrix: pd.DataFrame, dummy: pd.DataFrame, CAP: pd.DataFrame,
     CAP：市值矩阵
     lamda：做多和做空比率
     '''
-    m3, m_top, m_bot, boxes_list = computing_2(CAP, VOL, dummy, lamda, boxes, trl)  # 得到 True False 持仓矩阵
+    ret_matrix, dummy, CAP, VOL, lamda, boxes, trl, m3, m_top, m_bot, boxes_list, method = _x
+    # m3, m_top, m_bot, boxes_list = computing_2(CAP, VOL, dummy, lamda, boxes, trl)  # 得到 True False 持仓矩阵
 
     # 计算不同boxes的收益率
     ret_df = pd.DataFrame()
@@ -75,4 +88,4 @@ def computing2(ret_matrix: pd.DataFrame, dummy: pd.DataFrame, CAP: pd.DataFrame,
     # 计算收益率
     total_ret = ret_top - ret_bot
 
-    return m3, total_ret, ret_df, ret_top, ret_bot
+    return m3, total_ret, ret_df, ret_top, ret_bot, method
