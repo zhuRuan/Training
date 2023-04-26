@@ -17,7 +17,6 @@ st.markdown('当前源代码更新日期为：**:blue[2023年4月26日]**', unsa
 sidebar = st.sidebar
 now_time = dt.now()
 
-
 if 'first_visit' not in st.session_state:
     first_visit = True
 else:
@@ -40,6 +39,7 @@ def space(num_lines=1):  # 空格
 
 
 space(5)
+
 
 def MaxDrawdown(return_list):
     '''最大回撤率'''
@@ -65,6 +65,7 @@ def MaxDrawdown_protfolio(return_matrix: pd.DataFrame):
         maxDrawdown_list.append(MaxDrawdown_num)
     return maxDrawdown_list
 
+
 def annual_revenue(return_matrix: pd.DataFrame):
     '''计算年化收益率、夏普比率、最大回撤'''
     std_list = return_matrix.std(axis=0)
@@ -76,7 +77,8 @@ def annual_revenue(return_matrix: pd.DataFrame):
     maximum_drawdown_series = pd.Series(MaxDrawdown_protfolio(return_matrix)).round(3)
     return annualized_rate_of_return.values, sharp_series.values, maximum_drawdown_series.values
 
-def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method):
+
+def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method, factor_name1, factor_name2):
     '''生成三个部分的收益分析表格'''
 
     annual_ret, sharp, maximum_draw = annual_revenue(return_matrix=return_matrix)
@@ -87,19 +89,22 @@ def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method):
     IC_mean = ic_df.mean(axis=0).round(3).iloc[0]
     ICIR = np.round(IC_mean / ic_df.std(axis=0).iloc[0], 3)
     return pd.DataFrame(
-        {'因子名称': ['CAP', 'CAP', 'CAP'], '参数1': [method, method, method], '参数2': ['', '', ''],
-         '科目类别': list(return_matrix.columns),
+        {'因子名称': [factor_name1, factor_name1, factor_name1], '条件因子': [factor_name2, factor_name2, factor_name2],
+         '参数1': [method, method, method], '科目类别': list(return_matrix.columns),
          '年化收益率 （全时期）': annual_ret, '夏普比率 （全时期）': sharp, '最大回撤率 （全时期）': maximum_draw, '年化收益率 （前2/3时期）': annual_ret_2,
          '夏普比率 （前2/3时期）': sharp_2, '最大回撤率 （前2/3时期）': maximum_draw_2, '年化收益率 （后1/3时期）': annual_ret_3,
          '夏普比率 （后1/3时期）': sharp_3, '最大回撤率 （后1/3时期）': maximum_draw_3, 'IC值': [IC_mean, IC_mean, IC_mean],
          'ICIR': [ICIR, ICIR, ICIR]})
 
-def detail_table(total_return_matrix, top_return_matrix, bottom_return_matrix, ic_df, method = ''):
+
+def detail_table(total_return_matrix, top_return_matrix, bottom_return_matrix, ic_df, method='', factor_name1='',
+                 factor_name2=''):
     return_matrix = pd.DataFrame([total_return_matrix, top_return_matrix, bottom_return_matrix]).T
     return_matrix.columns = ['LT_SB', "Long_top", "Long_bottom"]
     # 收益表格
-    table = table_return(return_matrix, ic_df, method)
+    table = table_return(return_matrix, ic_df, method, factor_name1, factor_name2)
     return table, return_matrix
+
 
 def selectbox(calc_method):
     option = st.selectbox('选择您要查看的因子', calc_method)
@@ -128,10 +133,12 @@ def plot_table(table, fig_title: str):
     st.plotly_chart(figure_or_data=fig)
 
 
-def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix, ic_df, method):
+def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix, ic_df, method, factor_name1,
+                factor_name2):
     with st.container():
         st.header("组合收益分析")
-        table, return_matrix = detail_table(total_return_matrix, top_return_matrix, bottom_return_matrix, ic_df, method)
+        table, return_matrix = detail_table(total_return_matrix, top_return_matrix, bottom_return_matrix, ic_df, method,
+                                            factor_name1, factor_name2)
         fig = go.Figure()
         fig.update_layout(width=1600,
                           title='收益曲线',
@@ -350,8 +357,11 @@ if file_name != '':
         ic_cum_list = data[method]['ic_cum_list']
         _lag = data[method]['lag']
         ret_matrix = data[method]['ret_matrix']
+        factor_name1 = data[method]['factor_name1']
+        factor_name2 = data[method]['factor_name2']
         plot_return(total_return_matrix=(ret_total + 1).cumprod(), top_return_matrix=(ret_top + 1).cumprod(),
-                    bottom_return_matrix=(ret_bot + 1).cumprod(), ic_df=ic, method=method)
+                    bottom_return_matrix=(ret_bot + 1).cumprod(), ic_df=ic, method=method, factor_name1=factor_name1,
+                    factor_name2=factor_name2)
         # 因子暴露展示
         plot_exposure(valid_number_matrix=valid_number_matrix, dist_matrix=dist_matrix, dist_mad_matrix=dist_mad_matrix)
         # 单调性展示

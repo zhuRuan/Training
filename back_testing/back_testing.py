@@ -153,6 +153,8 @@ def run_back_testing_new(x):
     try:
         # lamda = 0.2, boxes = 3, lag = 1, rows = 30, columns = 30, trl = 30
         plot_dict_dict = {}
+        matrix_A_name = 'CAP'
+        matrix_B_name = 'VOL'
         # cacl_method = selectbox('您想要使用的方法是？', )
         lamda, boxes, lag, rows, columns, trl = x
 
@@ -192,7 +194,7 @@ def run_back_testing_new(x):
                          'ret_bot': ret_bot, 'ic_df': ic,
                          'valid_number_matrix': valid_number_matrix,
                          'dist_matrix': dist_matrix, 'dist_mad_matrix': dist_mad_matrix, 'mono_dist': mono_dist_list,
-                         'ic_list': ic, 'ic_cum_list': ic_cum_list, 'lag': _lag, 'ret_matrix': detail_tab[1]}
+                         'ic_list': ic, 'ic_cum_list': ic_cum_list, 'lag': _lag, 'ret_matrix': detail_tab[1], 'factor_name1': matrix_A_name, 'factor_name2':matrix_B_name}
             plot_dict_dict[method] = plot_dict
             # pickle表格
 
