@@ -7,13 +7,13 @@ import plotly.express as px
 import plotly.graph_objects as go
 import os
 from numpy import linspace
-from scipy.stats.kde import gaussian_kde
+from scipy.stats import gaussian_kde
 from datetime import datetime as dt
 import datetime
 
 st.set_page_config(layout="wide", page_icon="🧊", page_title="回测结果展示")
 st.title("回测结果展示")
-st.markdown('当前源代码更新日期为：**:blue[2023年4月26日]**', unsafe_allow_html=False)
+st.markdown('当前源代码更新日期为：**:blue[2023年5月16日]**', unsafe_allow_html=False)
 sidebar = st.sidebar
 now_time = dt.now()
 
@@ -43,7 +43,7 @@ space(5)
 
 def MaxDrawdown(return_list):
     '''最大回撤率'''
-    matrix = return_list.copy().reset_index(drop=True)
+    matrix = return_list.copy(deep=True).reset_index(drop=True)
     i = np.argmax(
         (np.maximum.accumulate(matrix, axis=0) - matrix) / np.maximum.accumulate(matrix))  # 结束位置
     if i == 0:
@@ -69,9 +69,14 @@ def MaxDrawdown_protfolio(return_matrix: pd.DataFrame):
 def annual_revenue(return_matrix: pd.DataFrame):
     '''计算年化收益率、夏普比率、最大回撤'''
     std_list = return_matrix.std(axis=0)
-    return_series = return_matrix.iloc[-1, :]
+    # 求出期初到期末的收益
+    return_series = return_matrix.iloc[-1, :] / return_matrix.iloc[0,:]
+
+    # 求出年化收益
     annualized_rate_of_return = pd.Series(
         ((np.sign(return_series.values) * np.power(abs(return_series.values), 250 / len(return_matrix))) - 1).round(3))
+
+    # 将收益率变为涨跌了多少而非净值的多少
     return_series = return_series - 1
     sharp_series = (return_series / std_list).round(3)
     maximum_drawdown_series = pd.Series(MaxDrawdown_protfolio(return_matrix)).round(3)
@@ -188,14 +193,16 @@ def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix, ic
 
 
 def kernel(dist_matrix: pd.DataFrame, trace_name='a'):
-    x_range = linspace(min(dist_matrix['CAP']), max(dist_matrix['CAP']), len(dist_matrix['CAP']))
+    dist_matrix['CAP'] = dist_matrix['CAP'].apply(np.log)
+    x_range = linspace(dist_matrix['CAP'].median() - 3 * dist_matrix['CAP'].std(),
+                       dist_matrix['CAP'].median() + 3 * dist_matrix['CAP'].std(), len(dist_matrix['CAP']))
     kde = gaussian_kde(dist_matrix['CAP'])
     df = pd.DataFrame({'x_range': x_range, 'x_kde': kde(x_range)})
     trace = go.Scatter(x=df['x_range'], y=df['x_kde'], mode='markers', name=trace_name)
     return trace
 
 
-def plot_exposure(valid_number_matrix, dist_matrix, dist_mad_matrix):
+def plot_exposure(valid_number_matrix, dist_matrix :pd.DataFrame(), dist_mad_matrix : pd.DataFrame()):
     with st.container():
         st.header("因子暴露")
         col1, col2 = st.columns(2)
@@ -218,8 +225,8 @@ def plot_exposure(valid_number_matrix, dist_matrix, dist_mad_matrix):
             # fig.update_layout(title_font_color='blue')
             st.plotly_chart(figure_or_data=fig)
         with col2:
-            trace1 = kernel(dist_matrix.iloc[:int((len(dist_matrix) * 2 / 3)), :], '前三分之二')
-            trace2 = kernel(dist_matrix.iloc[int((len(dist_matrix) * 2 / 3)):, :], '后三分之一')
+            trace1 = kernel(dist_matrix.iloc[:int((len(dist_matrix) * 2 / 3)), :].sample(n=min(5000,(int((len(dist_matrix) * 2 / 3)))-1)), '前三分之二')
+            trace2 = kernel(dist_matrix.iloc[int((len(dist_matrix) * 2 / 3)):, :].sample(n=min(5000,(int((len(dist_matrix) * 1 / 3)))-1)), '后三分之一')
             fig = go.Figure(data=[trace1, trace2])
 
             # fig = px.histogram(dist_matrix, x="CAP")
@@ -340,7 +347,6 @@ file_name = st.selectbox('您想调取什么时间段的数据？', lists)
 if file_name != '':
     with open(path + '\\' + file_name + '\\' + 'test.pkl', 'rb') as f:
         data = pickle.load(f)
-        print(data)
         # 选择需要的方法
         key_list = []
         for key in data.keys():
@@ -359,6 +365,8 @@ if file_name != '':
         ret_matrix = data[method]['ret_matrix']
         factor_name1 = data[method]['factor_name1']
         factor_name2 = data[method]['factor_name2']
+        # 去除dist的空值
+        dist_matrix = dist_matrix.fillna(dist_matrix['CAP'].mean())
         plot_return(total_return_matrix=(ret_total + 1).cumprod(), top_return_matrix=(ret_top + 1).cumprod(),
                     bottom_return_matrix=(ret_bot + 1).cumprod(), ic_df=ic, method=method, factor_name1=factor_name1,
                     factor_name2=factor_name2)

@@ -1,7 +1,8 @@
+# coding=utf-8
 import numpy as np
 import pandas as pd
 import streamlit as st
-from back_testing.back_testing import run_back_testing_new
+from back_testing.back_testing2 import run_back_testing_new
 from constant import trl_tuple
 from datetime import datetime as dt
 from concurrent.futures import ThreadPoolExecutor
@@ -28,10 +29,7 @@ if __name__ == '__main__':
 
     dataframe_list = []
     for _elem in res:
-        dataframe_list.append(_elem)
+        dataframe_list.extend(_elem)
     df = pd.concat(dataframe_list,)
     dir = 'pickle_data\\'
     df.to_csv(dir+'sum.csv')
-
-
-# 访问 https://www.jetbrains.com/help/pycharm/ 获取 PyCharm 帮助
