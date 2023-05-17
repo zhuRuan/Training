@@ -143,8 +143,8 @@ def run_back_testing_new(x):
         end_date = datetime.datetime.strptime(end_day, '%Y%m%d')
         ret = timing(get_ret_matrix(), start_date, end_date)
         dummy = timing(get_China_Securities_Index().replace(np.nan, False).replace(1.0, True), start_date, end_date)
-        CAP = timing(get_circ_mv(), start_date, end_date)
-        VOL = timing(get_volumn_ratio(), start_date, end_date)
+        CAP = timing(get_circ_mv().shift(1), start_date, end_date)
+        VOL = timing(get_volumn_ratio().shift(1), start_date, end_date)
 
         # 创建一个文件夹，用于装不同方法的数据
         dir = 'pickle_data\\' + str(datetime.datetime.now().strftime("%Y-%m-%d_%H_%M")) + '_trl' + str(trl)

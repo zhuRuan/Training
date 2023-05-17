@@ -87,7 +87,6 @@ def computing2(_x):
     # m3, m_top, m_bot, boxes_list = computing_2(CAP, VOL, dummy, lamda, boxes, trl)  # 得到 True False 持仓矩阵
 
     # 计算不同boxes的收益率
-    ret_df = pd.DataFrame()
     ret = ret_matrix.iloc[trl - 1:, :].copy(deep=True)
     columns = []
     i = 0
@@ -97,7 +96,7 @@ def computing2(_x):
         columns.append('box' + str(i))
         ret_list.append(ret_box)
         i += 1
-    ret_df = ret_df.T
+    ret_df = pd.concat(ret_list,axis=1)
     ret_df.columns = columns
 
     # 计算前分位数和后分位数头寸的收益
