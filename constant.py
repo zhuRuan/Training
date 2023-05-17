@@ -1,6 +1,6 @@
 #起始时间设置
 start_day = '20190420'
-end_day= '20200420'
+end_day= '20200620'
 
 #回溯期
 trl_tuple = (10,)
@@ -12,8 +12,7 @@ nmlz_day = 10
 ratio = 0.1
 
 #计算方法设置
-calc_method = ('std',) #总共有('std','std_ratio','mean_diff','mean')四种可以选择
-# ,'mean_diff','mean')
+calc_method = ('std','std_ratio','mean_diff','mean') #总共有('std','std_ratio','mean_diff','mean')四种可以选择
 
 #因子设置（未实装）
 factor_1 = '' #因子1：用于筛选可用的因子2天数

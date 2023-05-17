@@ -18,7 +18,6 @@ def calculate_ic(factor: pd.DataFrame(), ret: pd.DataFrame()):
     a1 = (_factor.T - _factor.mean(axis=1)).T.values
     a2 = (_ret.T - _ret.mean(axis=1)).T.values
     list2 = []
-    print(np.nansum(a1))
     for _row in range(a1.shape[0]):
         cov = np.nanmean(a1[_row] * a2[_row])
         list2.append(cov)

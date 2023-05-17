@@ -34,9 +34,12 @@ def MaxDrawdown(return_list):
     matrix = return_list.copy(deep=True).reset_index(drop=True)
     i = np.argmax(
         (np.maximum.accumulate(matrix, axis=0) - matrix) / np.maximum.accumulate(matrix))  # 结束位置
-    if i == 0:
+    if i == 0: # 等于0，说明没有回撤。
         return 0
     j = np.argmax(matrix[:i])  # 开始位置
+
+    if i <= 0 and j <= 0: # 小于0说明在组合中没有找到最大回撤点位，大概率是因为组合为空，原因不详
+        return 0
     if not matrix.empty:
         num = (matrix[j] - matrix[i]) / matrix[j]
     else:

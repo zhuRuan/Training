@@ -38,7 +38,7 @@ def select_CAP_mean(CAP_matrix: pd.DataFrame, true_false_matrix: pd.DataFrame, t
         c[c < 0] = np.nan
         # c.replace(0, np.nan, inplace=True)
         # CAP_mean_matrix = pd.concat((CAP_mean_matrix, c.mean().to_frame().T), axis=0)
-        list.append(c.mean().to_list())
+        list.append(c.mean())
     return pd.DataFrame(list), method
 
 
@@ -61,7 +61,7 @@ def select_CAP_mean_diff(CAP_matrix: pd.DataFrame, true_false_matrix: pd.DataFra
         c2 = a * b2
         c1[c1 < 0] = np.nan
         c2[c2 < 0] = np.nan
-        list.append((c1.mean() - c2.mean()).to_list())
+        list.append((c1.mean() - c2.mean()))
     return pd.DataFrame(list), method
 
 
@@ -88,7 +88,7 @@ def select_CAP_std_ratio(A_matrix: pd.DataFrame, true_false_matrix: pd.DataFrame
         # 清理不符合要求的数字，以免影响std运算
         c1[c1 < 0] = np.nan
         c2[c2 < 0] = np.nan
-        list.append((c1.std() / c2.std()).to_list())
+        list.append((c1.std() / c2.std()))
     return pd.DataFrame(list), method
 
 
