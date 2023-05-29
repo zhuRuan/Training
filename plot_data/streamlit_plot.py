@@ -68,7 +68,7 @@ def MaxDrawdown_protfolio(return_matrix: pd.DataFrame):
 
 def annual_revenue(return_matrix: pd.DataFrame):
     '''计算年化收益率、夏普比率、最大回撤'''
-    std_list = return_matrix.std(axis=0)
+    std_list = return_matrix.std(axis=0).reset_index(drop=True)
     # 求出期初到期末的收益
     return_series = return_matrix.iloc[-1, :] / return_matrix.iloc[0,:]
 
@@ -77,8 +77,7 @@ def annual_revenue(return_matrix: pd.DataFrame):
         ((np.sign(return_series.values) * np.power(abs(return_series.values), 250 / len(return_matrix))) - 1).round(3))
 
     # 将收益率变为涨跌了多少而非净值的多少
-    return_series = return_series - 1
-    sharp_series = (return_series / std_list).round(3)
+    sharp_series = (annualized_rate_of_return / std_list).round(3)
     maximum_drawdown_series = pd.Series(MaxDrawdown_protfolio(return_matrix)).round(3)
     return annualized_rate_of_return.values, sharp_series.values, maximum_drawdown_series.values
 
@@ -367,8 +366,8 @@ if file_name != '':
         factor_name2 = data[method]['factor_name2']
         # 去除dist的空值
         dist_matrix = dist_matrix.fillna(dist_matrix['CAP'].mean())
-        plot_return(total_return_matrix=(ret_total + 1).cumprod(), top_return_matrix=(ret_top + 1).cumprod(),
-                    bottom_return_matrix=(ret_bot + 1).cumprod(), ic_df=ic, method=method, factor_name1=factor_name1,
+        plot_return(total_return_matrix=(ret_total + 1).cumprod()/(ret_total+1).iloc[0], top_return_matrix=(ret_top + 1).cumprod()/(ret_top+1).iloc[0],
+                    bottom_return_matrix=(ret_bot + 1).cumprod()/(ret_bot+1).iloc[0], ic_df=ic, method=method, factor_name1=factor_name1,
                     factor_name2=factor_name2)
         # 因子暴露展示
         plot_exposure(valid_number_matrix=valid_number_matrix, dist_matrix=dist_matrix, dist_mad_matrix=dist_mad_matrix)

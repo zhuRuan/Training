@@ -145,12 +145,12 @@ def get_turnover_rate_f():
         return data
 
 
-def get_volumn_ratio():
+def get_volumn_ratio(path = 'is/basic/volume_ratio.pkl'):
     '''
     获取量比
     :return:量比
     '''
-    with open('is/basic/volume_ratio.pkl', 'rb') as f:
+    with open(path, 'rb') as f:
         data = pickle.load(f)
         return data
 

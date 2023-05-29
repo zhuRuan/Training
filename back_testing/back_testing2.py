@@ -2,7 +2,7 @@
 import pandas as pd
 
 from read_data.generate_random_data import *
-from process_data.return_rate import computing, multi_thread_cp2
+from process_data.control import compute
 # from plot_data.streamlit_plot import *
 from process_data.exposure import exposure
 from process_data.monotonicity import monotonicity
@@ -34,11 +34,11 @@ def MaxDrawdown(return_list):
     matrix = return_list.copy(deep=True).reset_index(drop=True)
     i = np.argmax(
         (np.maximum.accumulate(matrix, axis=0) - matrix) / np.maximum.accumulate(matrix))  # 结束位置
-    if i == 0: # 等于0，说明没有回撤。
+    if i == 0:  # 等于0，说明没有回撤。
         return 0
     j = np.argmax(matrix[:i])  # 开始位置
 
-    if i <= 0 and j <= 0: # 小于0说明在组合中没有找到最大回撤点位，大概率是因为组合为空，原因不详
+    if i <= 0 and j <= 0:  # 小于0说明在组合中没有找到最大回撤点位，大概率是因为组合为空，原因不详
         return 0
     if not matrix.empty:
         num = (matrix[j] - matrix[i]) / matrix[j]
@@ -59,12 +59,12 @@ def MaxDrawdown_protfolio(return_matrix: pd.DataFrame):
 
 def annual_revenue(return_matrix: pd.DataFrame):
     '''计算年化收益率、夏普比率、最大回撤'''
-    std_list = return_matrix.std(axis=0)
+    std_list = return_matrix.std(axis=0).reset_index(drop=True)
     return_series = return_matrix.iloc[-1, :]
     annualized_rate_of_return = pd.Series(
         ((np.sign(return_series.values) * np.power(abs(return_series.values), 250 / len(return_matrix))) - 1).round(3))
-    return_series = return_series - 1
-    sharp_series = (return_series / std_list).round(3)
+    sharp_series = (annualized_rate_of_return / std_list).round(3)
+    print(sharp_series)
     maximum_drawdown_series = pd.Series(MaxDrawdown_protfolio(return_matrix)).round(3)
     return annualized_rate_of_return.values, sharp_series.values, maximum_drawdown_series.values
 
@@ -79,13 +79,19 @@ def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method):
         return_matrix=return_matrix.iloc[2 * int(len(return_matrix) / 3):, :])
     IC_mean = ic_df.mean(axis=0).round(3).iloc[0]
     ICIR = np.round(IC_mean / ic_df.std(axis=0).iloc[0], 3)
-    return pd.DataFrame(
-        {'因子名称': [factor_1, factor_1, factor_1], '参数1': [method, method, method], '参数2': ['', '', ''],
-         '科目类别': list(return_matrix.columns),
-         '年化收益率 （全时期）': annual_ret, '夏普比率 （全时期）': sharp, '最大回撤率 （全时期）': maximum_draw, '年化收益率 （前2/3时期）': annual_ret_2,
-         '夏普比率 （前2/3时期）': sharp_2, '最大回撤率 （前2/3时期）': maximum_draw_2, '年化收益率 （后1/3时期）': annual_ret_3,
-         '夏普比率 （后1/3时期）': sharp_3, '最大回撤率 （后1/3时期）': maximum_draw_3, 'IC值': [IC_mean, IC_mean, IC_mean],
-         'ICIR': [ICIR, ICIR, ICIR]})
+    table = pd.DataFrame({'因子名称': [factor_1, factor_1, factor_1], '使用的参数': [method, method, method],
+                  '用作条件的因子': [factor_2, factor_2, factor_2],
+                  '科目类别': list(return_matrix.columns)})
+    table['nmlz_day'] = nmlz_day
+    table['start_day'] = start_day
+    table['end_day'] = end_day
+    table['partion_loc'] = partition_loc
+    table2 = pd.concat([table,pd.DataFrame({ '年化收益率 （全时期）': annual_ret, '夏普比率 （全时期）': sharp,
+                  '最大回撤率 （全时期）': maximum_draw, '年化收益率 （前2/3时期）': annual_ret_2,
+                  '夏普比率 （前2/3时期）': sharp_2, '最大回撤率 （前2/3时期）': maximum_draw_2, '年化收益率 （后1/3时期）': annual_ret_3,
+                  '夏普比率 （后1/3时期）': sharp_3, '最大回撤率 （后1/3时期）': maximum_draw_3, 'IC值': [IC_mean, IC_mean, IC_mean],
+                  'ICIR': [ICIR, ICIR, ICIR]})],axis=1)
+    return table2
 
 
 def detail_table(total_return_matrix, top_return_matrix, bottom_return_matrix, ic_df, method=''):
@@ -93,11 +99,6 @@ def detail_table(total_return_matrix, top_return_matrix, bottom_return_matrix, i
     return_matrix.columns = ['LT_SB', "Long_top", "Long_bottom"]
     # 收益表格
     table = table_return(return_matrix, ic_df, method)
-    table['用作条件的因子名称'] = factor_2
-    table['nmlz_day'] = nmlz_day
-    table['start_day'] = start_day
-    table['end_day'] = end_day
-    table['partion_loc'] = partition_loc
     return table, return_matrix
 
 
@@ -146,22 +147,23 @@ def run_back_testing_new(x):
         end_date = datetime.datetime.strptime(end_day, '%Y%m%d')
         ret = timing(get_ret_matrix(), start_date, end_date)
         dummy = timing(get_China_Securities_Index().replace(np.nan, False).replace(1.0, True), start_date, end_date)
-        CAP = timing(get_circ_mv().shift(1), start_date, end_date)
-        VOL = timing(get_volumn_ratio().shift(1), start_date, end_date)
+
+        _factor_1 = timing(get_dv_ttm().shift(1), start_date, end_date)
+        _factor_2 = timing(get_turnover_rate().shift(1), start_date, end_date)
 
         # 创建一个文件夹，用于装不同方法的数据
-        dir = 'pickle_data\\' + str(datetime.datetime.now().strftime("%Y-%m-%d_%H_%M")) + '_trl' + str(trl)
+        dir = 'pickle_data\\' + str(start_date.strftime("%Y-%m")) + '_' + str(
+            end_date.strftime("%Y-%m")) + '_' + factor_1 + '&&' + factor_2 + '_trl' + str(trl)
         mkdir(dir)
 
         # 用于装参数表格的list
         df_table_list = []
 
-        # 数组运算
-        for res in multi_thread_cp2(ret, dummy, CAP, VOL, lamda, boxes, trl):
-            portfolio, ret_total, ret_boxes_df, ret_top, ret_bot, method, CAP_new, dummy_new, ret_new = res
-
+        # 计算新因子，并计算其他变量
+        for res in compute(ret, dummy, _factor_1, _factor_2, lamda, boxes, trl): # 计算持仓矩阵和最终的收益率
+            portfolio, ret_total, ret_boxes_df, ret_top, ret_bot, method, _factor_1_new, dummy_new, ret_new = res
             # 因子暴露
-            valid_number_matrix, dist_matrix, dist_mad_matrix = exposure(CAP)
+            valid_number_matrix, dist_matrix, dist_mad_matrix = exposure(_factor_1)
 
             # 单调性
             lag_list = [1, 5, 20]
@@ -172,9 +174,9 @@ def run_back_testing_new(x):
             # 按照滞后期数的循环
             for _lag in lag_list:
                 if _lag != 1:
-                    factor_matrix = CAP_new[dummy_new].iloc[:-(_lag - 1), :]
+                    factor_matrix = _factor_1_new[dummy_new].iloc[:-(_lag - 1), :]
                 else:
-                    factor_matrix = CAP_new[dummy_new].iloc[:, :]
+                    factor_matrix = _factor_1_new[dummy_new]
                 ret_matrix = (ret_new[dummy_new] + 1).rolling(_lag).apply(np.prod) - 1
                 ret_boxes_matrix = (ret_boxes_df + 1).rolling(_lag).apply(np.prod) - 1
                 _ic, _ic_cum, _mono_dist = monotonicity(factor=factor_matrix, ret=ret_matrix.iloc[(_lag - 1):, :],
@@ -185,9 +187,9 @@ def run_back_testing_new(x):
                 mono_dist_list.append(_mono_dist)
 
             # 参数汇总表
-            detail_tab = detail_table(total_return_matrix=(ret_total + 1).cumprod(),
-                                      top_return_matrix=(ret_top + 1).cumprod(),
-                                      bottom_return_matrix=(ret_bot + 1).cumprod(), ic_df=ic, method=method)
+            detail_tab = detail_table(total_return_matrix=(ret_total + 1).cumprod()/(ret_total.iloc[0]+1),
+                                      top_return_matrix=(ret_top + 1).cumprod()/(ret_top.iloc[0]+1),
+                                      bottom_return_matrix=(ret_bot + 1).cumprod()/(ret_bot.iloc[0]+1), ic_df=ic, method=method)
 
             # streamlit需要用的python变量打包
             plot_dict = {'ret_total': ret_total, 'ret_top': ret_top,
