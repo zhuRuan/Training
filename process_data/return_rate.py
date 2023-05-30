@@ -6,11 +6,9 @@ def computing_profolio_return_rate(m3: pd.DataFrame, ret: pd.DataFrame):
     '''
     根据True-False矩阵计算组合收益率
     '''
-    _true_false = m3.replace(True, 1)
-    invest_numbers = _true_false.sum(axis=1)
-    result = ret * _true_false  # 收益率乘以m3
-    mean_ret = result.sum(axis=1) / invest_numbers
-    mean_ret = mean_ret.replace(np.nan,0) # 若有空，则替换为0
+    _true_false = m3
+    result = ret[_true_false]  # 收益率乘以m3
+    mean_ret = result.mean(axis=1)
     return mean_ret
 
 

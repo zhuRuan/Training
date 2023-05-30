@@ -71,15 +71,13 @@ def annual_revenue(return_matrix: pd.DataFrame):
     std_list = return_matrix.std(axis=0).reset_index(drop=True)
     # 求出期初到期末的收益
     return_series = return_matrix.iloc[-1, :] / return_matrix.iloc[0,:]
-
     # 求出年化收益
     annualized_rate_of_return = pd.Series(
         ((np.sign(return_series.values) * np.power(abs(return_series.values), 250 / len(return_matrix))) - 1).round(3))
-
     # 将收益率变为涨跌了多少而非净值的多少
     sharp_series = (annualized_rate_of_return / std_list).round(3)
     maximum_drawdown_series = pd.Series(MaxDrawdown_protfolio(return_matrix)).round(3)
-    return annualized_rate_of_return.values, sharp_series.values, maximum_drawdown_series.values
+    return annualized_rate_of_return.apply(lambda x: format(x, '.2%')).values, sharp_series.apply(lambda x: format(x, '.2f')).values, maximum_drawdown_series.apply(lambda x: format(x, '.2%')).values
 
 
 def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method, factor_name1, factor_name2):
@@ -92,6 +90,13 @@ def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method, facto
         return_matrix=return_matrix.iloc[2 * int(len(return_matrix) / 3):, :])
     IC_mean = ic_df.mean(axis=0).round(3).iloc[0]
     ICIR = np.round(IC_mean / ic_df.std(axis=0).iloc[0], 3)
+    print(pd.DataFrame(
+        {'因子名称': [factor_name1, factor_name1, factor_name1], '条件因子': [factor_name2, factor_name2, factor_name2],
+         '参数1': [method, method, method], '科目类别': list(return_matrix.columns),
+         '年化收益率 （全时期）': annual_ret, '夏普比率 （全时期）': sharp, '最大回撤率 （全时期）': maximum_draw, '年化收益率 （前2/3时期）': annual_ret_2,
+         '夏普比率 （前2/3时期）': sharp_2, '最大回撤率 （前2/3时期）': maximum_draw_2, '年化收益率 （后1/3时期）': annual_ret_3,
+         '夏普比率 （后1/3时期）': sharp_3, '最大回撤率 （后1/3时期）': maximum_draw_3, 'IC值': [IC_mean, IC_mean, IC_mean],
+         'ICIR': [ICIR, ICIR, ICIR]}))
     return pd.DataFrame(
         {'因子名称': [factor_name1, factor_name1, factor_name1], '条件因子': [factor_name2, factor_name2, factor_name2],
          '参数1': [method, method, method], '科目类别': list(return_matrix.columns),
@@ -115,6 +120,8 @@ def selectbox(calc_method):
 
 
 def plot_table(table, fig_title: str):
+    pd.set_option('display.max_columns', None)
+    print(table)
     fig = go.Figure(
         data=[go.Table(
             header=dict(values=list(table.columns),
@@ -366,7 +373,7 @@ if file_name != '':
         factor_name2 = data[method]['factor_name2']
         # 去除dist的空值
         dist_matrix = dist_matrix.fillna(dist_matrix['CAP'].mean())
-        plot_return(total_return_matrix=(ret_total + 1).cumprod()/(ret_total+1).iloc[0], top_return_matrix=(ret_top + 1).cumprod()/(ret_top+1).iloc[0],
+        plot_return(total_return_matrix=(ret_total + 1).cumprod()/(ret_total.iloc[0]+1), top_return_matrix=(ret_top + 1).cumprod()/(ret_top+1).iloc[0],
                     bottom_return_matrix=(ret_bot + 1).cumprod()/(ret_bot+1).iloc[0], ic_df=ic, method=method, factor_name1=factor_name1,
                     factor_name2=factor_name2)
         # 因子暴露展示

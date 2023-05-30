@@ -58,13 +58,16 @@ def MaxDrawdown_protfolio(return_matrix: pd.DataFrame):
 
 
 def annual_revenue(return_matrix: pd.DataFrame):
-    '''计算年化收益率、夏普比率、最大回撤'''
+    '''
+    计算年化收益率、夏普比率、最大回撤
+    :param return_matrix: 收益率dataframe
+    :return:
+    '''
     std_list = return_matrix.std(axis=0).reset_index(drop=True)
     return_series = return_matrix.iloc[-1, :]
     annualized_rate_of_return = pd.Series(
         ((np.sign(return_series.values) * np.power(abs(return_series.values), 250 / len(return_matrix))) - 1).round(3))
     sharp_series = (annualized_rate_of_return / std_list).round(3)
-    print(sharp_series)
     maximum_drawdown_series = pd.Series(MaxDrawdown_protfolio(return_matrix)).round(3)
     return annualized_rate_of_return.values, sharp_series.values, maximum_drawdown_series.values
 
