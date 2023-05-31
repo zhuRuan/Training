@@ -15,18 +15,13 @@ def calculate_ic(factor: pd.DataFrame(), ret: pd.DataFrame()):
     _ret = ret.copy(deep=True)
     _ret = _ret.reset_index(drop=True)
 
-    a1 = (_factor.T - _factor.mean(axis=1)).T.values
-    a2 = (_ret.T - _ret.mean(axis=1)).T.values
-    list2 = []
-    for _row in range(a1.shape[0]):
-        cov = np.nanmean(a1[_row] * a2[_row])
-        list2.append(cov)
-    var = factor.std(axis=1).values * ret.std(axis=1).values
-    ic = np.array(list2) / var
+    a1 = (_factor.sub(_factor.mean(axis=1),axis=0))
+    a2 = (_ret.sub(_ret.mean(axis=1),axis=0))
+    ic = (a1 * a2).mean(axis=1)/_factor.std(axis=1)/_ret.std(axis=1)
 
     # 将ic从series变为dataframe
     ic_df = pd.DataFrame(ic)
-    ic_df.columns = ['IC_CAP']
+    ic_df.columns = ['IC']
     return ic_df
 
 

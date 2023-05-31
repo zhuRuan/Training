@@ -1,11 +1,11 @@
 # coding=utf-8
+import time
+
 import pandas as pd
 
 from read_data.generate_random_data import *
 from process_data.control import compute
-# from plot_data.streamlit_plot import *
-from process_data.exposure import exposure
-from process_data.monotonicity import monotonicity
+from process_data.monotonicity import calculate_ic
 import datetime
 from constant import *
 from read_data.get_data import *
@@ -83,17 +83,19 @@ def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method):
     IC_mean = ic_df.mean(axis=0).round(3).iloc[0]
     ICIR = np.round(IC_mean / ic_df.std(axis=0).iloc[0], 3)
     table = pd.DataFrame({'因子名称': [factor_1, factor_1, factor_1], '使用的参数': [method, method, method],
-                  '用作条件的因子': [factor_2, factor_2, factor_2],
-                  '科目类别': list(return_matrix.columns)})
+                          '用作条件的因子': [factor_2, factor_2, factor_2],
+                          '科目类别': list(return_matrix.columns)})
     table['nmlz_day'] = nmlz_day
     table['start_day'] = start_day
     table['end_day'] = end_day
     table['partion_loc'] = partition_loc
-    table2 = pd.concat([table,pd.DataFrame({ '年化收益率 （全时期）': annual_ret, '夏普比率 （全时期）': sharp,
-                  '最大回撤率 （全时期）': maximum_draw, '年化收益率 （前2/3时期）': annual_ret_2,
-                  '夏普比率 （前2/3时期）': sharp_2, '最大回撤率 （前2/3时期）': maximum_draw_2, '年化收益率 （后1/3时期）': annual_ret_3,
-                  '夏普比率 （后1/3时期）': sharp_3, '最大回撤率 （后1/3时期）': maximum_draw_3, 'IC值': [IC_mean, IC_mean, IC_mean],
-                  'ICIR': [ICIR, ICIR, ICIR]})],axis=1)
+    table2 = pd.concat([table, pd.DataFrame({'年化收益率 （全时期）': annual_ret, '夏普比率 （全时期）': sharp,
+                                             '最大回撤率 （全时期）': maximum_draw, '年化收益率 （前2/3时期）': annual_ret_2,
+                                             '夏普比率 （前2/3时期）': sharp_2, '最大回撤率 （前2/3时期）': maximum_draw_2,
+                                             '年化收益率 （后1/3时期）': annual_ret_3,
+                                             '夏普比率 （后1/3时期）': sharp_3, '最大回撤率 （后1/3时期）': maximum_draw_3,
+                                             'IC值': [IC_mean, IC_mean, IC_mean],
+                                             'ICIR': [ICIR, ICIR, ICIR]})], axis=1)
     return table2
 
 
@@ -138,6 +140,7 @@ def timing(matrix, _start, _end):
 # 生成四个矩阵(dataframe)：收益率，是否为指定成分股的dummy，市值， 波动率
 def run_back_testing_new(x):
     try:
+        T_read1 = time.perf_counter()
         # lamda = 0.2, boxes = 3, lag = 1, rows = 30, columns = 30, trl = 30
         plot_dict_dict = {}
         matrix_A_name = 'CAP'
@@ -161,45 +164,24 @@ def run_back_testing_new(x):
 
         # 用于装参数表格的list
         df_table_list = []
+        T_read2 = time.perf_counter()
+        print("读取数据用时：", T_read2 - T_read1)
 
         # 计算新因子，并计算其他变量
-        for res in compute(ret, dummy, _factor_1, _factor_2, lamda, boxes, trl): # 计算持仓矩阵和最终的收益率
-            portfolio, ret_total, ret_boxes_df, ret_top, ret_bot, method, _factor_1_new, dummy_new, ret_new = res
-            # 因子暴露
-            valid_number_matrix, dist_matrix, dist_mad_matrix = exposure(_factor_1)
+        for res in compute(ret, dummy, _factor_1, _factor_2, lamda, boxes, trl):  # 计算持仓矩阵和最终的收益率
+            portfolio, ret_total, ret_boxes_df, ret_top, ret_bot, method, _factor_2_new, dummy_new, ret_new = res
+            ic_df = calculate_ic(_factor_2_new, ret_new)
 
-            # 单调性
-            lag_list = [1, 5, 20]
-            ic = 0
-            ic_cum_list = []
-            mono_dist_list = []
-
-            # 按照滞后期数的循环
-            for _lag in lag_list:
-                if _lag != 1:
-                    factor_matrix = _factor_1_new[dummy_new].iloc[:-(_lag - 1), :]
-                else:
-                    factor_matrix = _factor_1_new[dummy_new]
-                ret_matrix = (ret_new[dummy_new] + 1).rolling(_lag).apply(np.prod) - 1
-                ret_boxes_matrix = (ret_boxes_df + 1).rolling(_lag).apply(np.prod) - 1
-                _ic, _ic_cum, _mono_dist = monotonicity(factor=factor_matrix, ret=ret_matrix.iloc[(_lag - 1):, :],
-                                                        ret_df=ret_boxes_matrix)
-                if _lag == 1:
-                    ic = _ic
-                ic_cum_list.append(_ic_cum)
-                mono_dist_list.append(_mono_dist)
-
+            T3 = time.perf_counter()
             # 参数汇总表
-            detail_tab = detail_table(total_return_matrix=(ret_total + 1).cumprod()/(ret_total.iloc[0]+1),
-                                      top_return_matrix=(ret_top + 1).cumprod()/(ret_top.iloc[0]+1),
-                                      bottom_return_matrix=(ret_bot + 1).cumprod()/(ret_bot.iloc[0]+1), ic_df=ic, method=method)
+            detail_tab = detail_table(total_return_matrix=(ret_total + 1).cumprod() / (ret_total.iloc[0] + 1),
+                                      top_return_matrix=(ret_top + 1).cumprod() / (ret_top.iloc[0] + 1),
+                                      bottom_return_matrix=(ret_bot + 1).cumprod() / (ret_bot.iloc[0] + 1), ic_df=ic_df,
+                                      method=method)
 
             # streamlit需要用的python变量打包
-            plot_dict = {'ret_total': ret_total, 'ret_top': ret_top,
-                         'ret_bot': ret_bot, 'ic_df': ic,
-                         'valid_number_matrix': valid_number_matrix,
-                         'dist_matrix': dist_matrix, 'dist_mad_matrix': dist_mad_matrix, 'mono_dist': mono_dist_list,
-                         'ic_list': ic, 'ic_cum_list': ic_cum_list, 'lag': _lag, 'ret_matrix': detail_tab[1],
+            plot_dict = {'ret_total': ret_total, 'ret_top': ret_top, 'ret_bot': ret_bot, 'ret_boxes_df': ret_boxes_df,
+                         '_factor_2_new': _factor_2_new, 'dummy_new': dummy_new, 'ret_new': ret_new,
                          'factor_name1': matrix_A_name, 'factor_name2': matrix_B_name}
             plot_dict_dict[method] = plot_dict
 
@@ -208,6 +190,8 @@ def run_back_testing_new(x):
             detail_tab[0].to_csv(pickle_path, index=False, encoding='gbk')
 
             df_table_list.append(detail_tab[0])
+            T4 = time.perf_counter()
+            print('生成表格时间为：', T4 - T3)
 
         # pickle表格
         with open(dir + '\\' + 'test.pkl', 'wb') as f:

@@ -18,7 +18,7 @@ def exposure(CAP: pd.DataFrame):
     valid_number = CAP.count(axis=1).rename('valid_number_CAP').to_frame().copy(deep=True).reset_index()
 
     # 直方图
-    rate = 50  # 采样速率
+    rate = 10  # 采样速率
     dist = pd.DataFrame(CAP.to_numpy().flatten())  # 恒定速率采样后，降维至一维数组
     dist.columns = ['CAP']
 

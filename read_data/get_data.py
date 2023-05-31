@@ -155,22 +155,22 @@ def get_volumn_ratio(path = 'is/basic/volume_ratio.pkl'):
         return data
 
 
-def get_close_price():
+def get_close_price(path = 'is/dq/close.pkl'):
     '''
         获取收盘价格
         :return:收盘价格
     '''
-    with open('is/dq/close.pkl', 'rb') as f:
+    with open(path, 'rb') as f:
         data = pickle.load(f)
         return data
 
 
-def get_adj_factor():
+def get_adj_factor(path = 'is/dq_adj_factor/adj_factor.pkl'):
     '''
        获取调整后收盘价格
        :return:收盘价格
        '''
-    with open('is/dq_adj_factor/adj_factor.pkl', 'rb') as f:
+    with open(path, 'rb') as f:
         data = pickle.load(f)
         return data
 

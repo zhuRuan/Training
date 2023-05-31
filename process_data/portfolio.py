@@ -1,3 +1,5 @@
+import time
+
 import pandas as pd
 import numpy as np
 from constant import calc_method, nmlz_day, partition_loc, top_ratio, partition_loc
@@ -196,7 +198,6 @@ def select_CAP_mean_diff(CAP_matrix: pd.DataFrame, true_false_matrix: pd.DataFra
     return pd.DataFrame(list), method
 
 
-
 def calculate_new_factor(a):
     '''
     按照指定方法计算新的因子矩阵
@@ -314,11 +315,6 @@ def computing_portfolio_matrix(_x):
     rank_matrix = new_factor_matrix_norm_dummy.rank(axis=1, method='dense', ascending=True, na_option='keep',
                                                     pct=True)  # 对当天所有的在交易范围内且可以交易的股票进行排序，升序
 
-    # 生成M2：找到每一行最大的数字
-    max_numbers = rank_matrix.max(axis=1)
-    max_numbers_df = max_numbers.to_frame()
-    max_numbers_matrix = pd.DataFrame(np.repeat(max_numbers_df.values, len(rank_matrix.columns), axis=1))
-
     # 生成M3：对排位进行boxes划分，即计算出不同boxes的持仓矩阵并存在列表中
     m_boxes_list = []
     for i in range(0, boxes):
@@ -357,7 +353,10 @@ def get_portfolio(A_matrix, B_matrix, dummy, lamda, boxes, trl):
     :return: m_t_B, m_top, m_bot, m_boxes_list, method, new_factor_matrix_norm, dummy
     '''
     # 先计算新因子
+    t_cal1 = time.perf_counter()
     _output_list_factor = multi_process_new_facotr(A_matrix=A_matrix, B_matrix=B_matrix, trl=trl)
+    t_cal2 = time.perf_counter()
+    print('因子计算用时(包含在生成持仓矩阵内)：', t_cal2 - t_cal1)
 
     # 再计算持仓矩阵
     return multi_process_portfolio(input_list_for_portfolio=_output_list_factor, dummy=dummy, lamda=lamda, boxes=boxes,
