@@ -1,20 +1,17 @@
-# coding=gbk
-from concurrent.futures import ThreadPoolExecutor
-import pandas as pd
+# coding=utf-8
+import multiprocessing
+from concurrent.futures import ProcessPoolExecutor
+import time
 
-def dataframe_ret (g):
-    df = pd.DataFrame()
-    df['new'] = [1,2,3]
-    return df
 
-# 按间距中的绿色按钮以运行脚本。
+def test1(abc):
+    time.sleep(abc)
+    print(abc)
+    return abc
+
 if __name__ == '__main__':
-    list = ['a','b','c','d','e','f','g']
-    list2 = []
-    with ThreadPoolExecutor(max_workers=None) as executor:
-        df_list = executor.map(dataframe_ret, list)
-    for df in df_list:
-        list2.append(df)
+    with ProcessPoolExecutor(max_workers=None) as executor:
+        aaa = executor.map(test1,[6,4,3,1,4])
+    for a in aaa:
+        print(a)
 
-    df1 = pd.concat(list2, ignore_index = True)
-    print(df1)

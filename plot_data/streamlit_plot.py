@@ -11,11 +11,13 @@ import os
 from numpy import linspace
 from scipy.stats import gaussian_kde
 from datetime import datetime as dt
+from concurrent.futures import ProcessPoolExecutor
+from empyrical import max_drawdown, sharpe_ratio, aggregate_returns, annual_return, cum_returns
 import datetime
 
 st.set_page_config(layout="wide", page_icon="🧊", page_title="回测结果展示")
 st.title("回测结果展示")
-st.markdown('当前源代码更新日期为：**:blue[2023年5月16日]**', unsafe_allow_html=False)
+st.markdown('当前源代码更新日期为：**:blue[2023年6月21日]**', unsafe_allow_html=False)
 sidebar = st.sidebar
 now_time = dt.now()
 
@@ -71,13 +73,12 @@ def exposure(CAP: pd.DataFrame):
     # 直方图
     t_dist1 = time.perf_counter()
     rate = 10  # 采样速率
-    dist = pd.DataFrame(CAP.to_numpy().flatten()) # 恒定速率采样后，降维至一维数组
+    dist = pd.DataFrame(CAP.to_numpy().flatten())  # 恒定速率采样后，降维至一维数组
     dist.columns = ['CAP']
     dist2 = dist.copy(deep=True)
     dist2.dropna(inplace=True, axis=0, how='any')
     dist2.reset_index(drop=True, inplace=True)
     t_dist2 = time.perf_counter()
-    print('直方图用时：', t_dist2 - t_dist1)
 
     # # 去极值后的直方图
     # mad_winsorize = filter_extreme_MAD(dist, 3)
@@ -108,9 +109,8 @@ def calculate_ic(factor: pd.DataFrame(), ret: pd.DataFrame()):
     return ic_df
 
 
-def mono_dist(ret_df: pd.DataFrame):
+def mono_dist(ret_cum_df: pd.DataFrame):
     # 计算加总
-    ret_cum_df = ret_df.iloc[-1]
     ret_cum_df = ret_cum_df.to_frame()
     ret_cum_df['boxes'] = ret_cum_df.index
     ret_cum_df.columns = ['return_rate_minus_mean', 'boxes']
@@ -121,78 +121,65 @@ def mono_dist(ret_df: pd.DataFrame):
 
 
 def monotonicity(ret: pd.DataFrame, factor: pd.DataFrame, ret_df):
-    ic = calculate_ic(ret, factor)
-    ic_cum = ic.cumsum()
+    ic_df = calculate_ic(ret, factor)
+    ic_cum = ic_df.cumsum()
     ic_cum.columns = ['IC_CUM_CAP']
     _mono_dist = mono_dist(ret_df)
-    return ic, ic_cum, _mono_dist
+    return ic_df, ic_cum, _mono_dist
 
 
-def MaxDrawdown(return_list):
-    '''最大回撤率'''
-    matrix = return_list.copy(deep=True).reset_index(drop=True)
-    i = np.argmax(
-        (np.maximum.accumulate(matrix, axis=0) - matrix) / np.maximum.accumulate(matrix))  # 结束位置
-    if i == 0:
-        return 0
-    j = np.argmax(matrix[:i])  # 开始位置
-    if not matrix.empty:
-        num = (matrix[j] - matrix[i]) / matrix[j]
-    else:
-        num = 0
-    return num
-
-
-def MaxDrawdown_protfolio(return_matrix: pd.DataFrame):
-    maxDrawdown_dict = {}
-    maxDrawdown_list = []
-    for column in list(return_matrix.columns):
-        MaxDrawdown_num = MaxDrawdown(return_matrix[column])
-        maxDrawdown_dict[column] = MaxDrawdown_num
-        maxDrawdown_list.append(MaxDrawdown_num)
-    return maxDrawdown_list
-
-
-def annual_revenue(return_matrix: pd.DataFrame):
+def comprehensive_income_analysis_total(return_matrix: pd.DataFrame):
     '''计算年化收益率、夏普比率、最大回撤'''
-    std_list = return_matrix.std(axis=0).reset_index(drop=True)
-    # 求出期初到期末的收益
-    return_series = return_matrix.iloc[-1, :] / return_matrix.iloc[0, :]
     # 求出年化收益
-    annualized_rate_of_return = pd.Series(
-        ((np.sign(return_series.values) * np.power(abs(return_series.values), 250 / len(return_matrix))) - 1).round(3))
+    annualized_rate_of_return_series = annual_return(return_matrix.iloc[:, :3])
     # 将收益率变为涨跌了多少而非净值的多少
-    sharp_series = (annualized_rate_of_return / std_list).round(3)
-    maximum_drawdown_series = pd.Series(MaxDrawdown_protfolio(return_matrix)).round(3)
-    return annualized_rate_of_return.apply(lambda x: format(x, '.2%')).values, sharp_series.apply(
-        lambda x: format(x, '.2f')).values, maximum_drawdown_series.apply(lambda x: format(x, '.2%')).values
+    sharp_series = pd.to_numeric(pd.Series(sharpe_ratio(return_matrix.iloc[:, :3])))
+    # 求最大回撤
+    maximum_drawdown_series = pd.Series(max_drawdown(return_matrix.iloc[:, :3]))
+    # 求超额收益
+    excess_return = annualized_rate_of_return_series - annual_return(return_matrix.iloc[:, 3])
+    return annualized_rate_of_return_series.apply(lambda x: format(x, '.2%')).values, sharp_series.apply(
+        lambda x: format(x, '.2f')).values, maximum_drawdown_series.apply(
+        lambda x: format(x, '.2%')).values, excess_return.apply(lambda x: format(x, '.2%')).values
+
+
+def comprehensive_income_analysis(return_matrix: pd.DataFrame):
+    '''计算年化收益率、夏普比率、最大回撤'''
+    # 求出年化收益
+    annualized_rate_of_return_series = annual_return(return_matrix.iloc[:, :3])
+    # 将收益率变为涨跌了多少而非净值的多少
+    sharp_series = pd.to_numeric(pd.Series(sharpe_ratio(return_matrix.iloc[:, :3])))
+    # 求最大回撤
+    maximum_drawdown_series = pd.Series(max_drawdown(return_matrix.iloc[:, :3]))
+    return annualized_rate_of_return_series.apply(lambda x: format(x, '.2%')).values, sharp_series.apply(
+        lambda x: format(x, '.2f')).values, maximum_drawdown_series.apply(
+        lambda x: format(x, '.2%')).values
 
 
 def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method, factor_name1, factor_name2):
     '''生成三个部分的收益分析表格'''
 
-    annual_ret, sharp, maximum_draw = annual_revenue(return_matrix=return_matrix)
-    annual_ret_2, sharp_2, maximum_draw_2 = annual_revenue(
+    annual_ret, sharp, maximum_draw, excess_return = comprehensive_income_analysis_total(return_matrix=return_matrix)
+    annual_ret_2, sharp_2, maximum_draw_2 = comprehensive_income_analysis(
         return_matrix=return_matrix.iloc[:2 * int(len(return_matrix) / 3), :])
-    annual_ret_3, sharp_3, maximum_draw_3 = annual_revenue(
+    annual_ret_3, sharp_3, maximum_draw_3 = comprehensive_income_analysis(
         return_matrix=return_matrix.iloc[2 * int(len(return_matrix) / 3):, :])
     IC_mean = ic_df.mean(axis=0).round(3).iloc[0]
     ICIR = np.round(IC_mean / ic_df.std(axis=0).iloc[0], 3)
     return pd.DataFrame(
         {'因子名称': [factor_name1, factor_name1, factor_name1], '条件因子': [factor_name2, factor_name2, factor_name2],
-         '参数1': [method, method, method], '科目类别': list(return_matrix.columns),
-         '年化收益率 （全时期）': annual_ret, '夏普比率 （全时期）': sharp, '最大回撤率 （全时期）': maximum_draw, '年化收益率 （前2/3时期）': annual_ret_2,
-         '夏普比率 （前2/3时期）': sharp_2, '最大回撤率 （前2/3时期）': maximum_draw_2, '年化收益率 （后1/3时期）': annual_ret_3,
-         '夏普比率 （后1/3时期）': sharp_3, '最大回撤率 （后1/3时期）': maximum_draw_3, 'IC值': [IC_mean, IC_mean, IC_mean],
-         'ICIR': [ICIR, ICIR, ICIR]})
+         '参数1': [method, method, method], '科目类别': list(return_matrix.columns.to_list()[:3]), '年化收益率 （全时期）': annual_ret,
+         '超额收益 （全时期）': excess_return,
+         '夏普比率 （全时期）': sharp, '最大回撤率 （全时期）': maximum_draw, '年化收益率 （前2/3时期）': annual_ret_2, '夏普比率 （前2/3时期）': sharp_2,
+         '最大回撤率 （前2/3时期）': maximum_draw_2, '年化收益率 （后1/3时期）': annual_ret_3, '夏普比率 （后1/3时期）': sharp_3,
+         '最大回撤率 （后1/3时期）': maximum_draw_3, 'IC值': [IC_mean, IC_mean, IC_mean], 'ICIR': [ICIR, ICIR, ICIR]})
 
 
-def detail_table(total_return_matrix, top_return_matrix, bottom_return_matrix, ic_df, method='', factor_name1='',
-                 factor_name2=''):
-    return_matrix = pd.DataFrame([total_return_matrix, top_return_matrix, bottom_return_matrix]).T
-    return_matrix.columns = ['LT_SB', "Long_top", "Long_bottom"]
+def detail_table(return_matrix, ic_df, method='', factor_name1='', factor_name2=''):
     # 收益表格
     table = table_return(return_matrix, ic_df, method, factor_name1, factor_name2)
+
+    return_matrix = cum_returns(return_matrix)
     return table, return_matrix
 
 
@@ -223,13 +210,43 @@ def plot_table(table, fig_title: str):
     st.plotly_chart(figure_or_data=fig)
 
 
-def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix, ic_df, method, factor_name1,
-                factor_name2):
+def plot_return(return_matrix, ic_df, method, factor_name1, factor_name2):
     with st.container():
         st.header("组合收益分析")
-        table, return_matrix = detail_table(total_return_matrix, top_return_matrix, bottom_return_matrix, ic_df, method,
-                                            factor_name1, factor_name2)
-        fig = go.Figure()
+        table, return_matrix = detail_table(return_matrix, ic_df, method, factor_name1, factor_name2)
+        # 添加数据
+        trace1 = go.Scatter(
+            x=return_matrix.index,
+            y=return_matrix['Long_top'],
+            mode='lines',  # 模式
+            name='Long_top[左轴]',
+        )
+        trace2 = go.Scatter(
+            x=return_matrix.index,
+            y=return_matrix['Long_bottom'],
+            mode='lines',  # 模式
+            name='Long_bottom[左轴]'
+        )
+        trace3 = go.Scatter(
+            x=return_matrix.index,
+            y=return_matrix['Portfolio'],
+            mode='lines',  # 模式
+            name='Portfolio[左轴]',
+        )
+        trace4 = go.Scatter(
+            x=return_matrix.index,
+            y=return_matrix['LT_SB'],
+            mode='lines',  # 模式
+            name='LT_SB[左轴]',
+            # xaxis='x',
+            # yaxis='y2'
+        )
+
+        layout = go.Layout(
+            yaxis2=dict(anchor='x', overlaying='y', side='right')
+        )
+        fig = go.Figure(data=[trace1, trace2, trace3, trace4], layout=layout
+                        )
         fig.update_layout(width=1600,
                           title='收益曲线',
                           title_font_size=25,
@@ -244,32 +261,7 @@ def plot_return(total_return_matrix, top_return_matrix, bottom_return_matrix, ic
                               tickfont_size=20
                           ),
                           )
-
-        # 添加数据
-        fig.add_trace(go.Scatter(
-            x=return_matrix.index,
-            y=return_matrix['LT_SB'],
-            mode='lines',  # 模式
-            name='LT_SB'
-        ))
-
-        fig.add_trace(go.Scatter(
-            x=return_matrix.index,
-            y=return_matrix['Long_top'],
-            mode='lines',  # 模式
-            name='Long_top'
-        ))
-        fig.add_trace(go.Scatter(
-            x=return_matrix.index,
-            y=return_matrix['Long_bottom'],
-            mode='lines',  # 模式
-            name='Long_bottom'
-        ))
         st.plotly_chart(figure_or_data=fig)  # 折线图
-
-        # # pickle表格
-        # pickle_path = 'pickle_data\\'+  str(list(table['因子名称'])[0]) +str(datetime.datetime.now().strftime("%Y-%m-%d_%H_%M")) + str('.zip')
-        # table.to_pickle(pickle_path)
 
         # 展示表格
         plot_table(table, '收益表格')
@@ -287,7 +279,42 @@ def kernel(dist_matrix: pd.DataFrame, trace_name='a'):
     return trace
 
 
-def plot_exposure(valid_number_matrix, dist_matrix: pd.DataFrame()):
+def plot_boxes_return(ret_boxes_df: pd.DataFrame):
+    equity_curve = cum_returns(ret_boxes_df)
+    data_list = []
+    for column in equity_curve.columns.to_list():
+        trace = go.Scatter(
+            x=equity_curve.index,
+            y=equity_curve[column],
+            mode='lines',  # 模式
+            name=column,
+            xaxis='x',
+            yaxis='y'
+        )
+        data_list.append(trace)
+    layout = go.Layout(
+        yaxis2=dict(anchor='x', overlaying='y', side='right')
+    )
+    fig = go.Figure(data=data_list, layout=layout
+                    )
+    fig.update_layout(width=1600,
+                      title='收益曲线',
+                      title_font_size=25,
+                      xaxis=dict(
+                          title='日期',
+                          title_font_size=20,
+                          tickfont_size=20  # x轴字体大小
+                      ),
+                      yaxis=dict(
+                          title='收益率',
+                          title_font_size=20,
+                          tickfont_size=20
+                      ),
+                      )
+    st.plotly_chart(figure_or_data=fig)  # 折线图
+
+
+def plot_exposure(valid_number_matrix, dist_matrix: pd.DataFrame):
     with st.container():
         st.header("因子暴露")
         col1, col2 = st.columns(2)
@@ -337,9 +364,8 @@ def plot_exposure(valid_number_matrix, dist_matrix: pd.DataFrame()):
     space(4)
 
 
-def plot_monotonicity(mono_dist, ic_list, ic_cum_list, lag):
+def plot_monotonicity(mono_dist, ic_df, ic_cum_list):
     with st.container():
-        st.header("单调性")
         col1, col2, col3 = st.columns(3)
         with col1:
             fig = px.bar(data_frame=mono_dist[0], x='boxes', y=['return_rate_minus_mean'])
@@ -393,9 +419,9 @@ def plot_monotonicity(mono_dist, ic_list, ic_cum_list, lag):
             )
             st.plotly_chart(figure_or_data=fig)
         trace1 = go.Bar(
-            x=list(ic_list.index),
-            y=ic_list['IC_CAP'],
-            name='IC值'
+            x=list(ic_df.index),
+            y=ic_df['IC'],
+            name='IC值',
         )
         trace2 = go.Scatter(
             x=list(ic_cum_list[0].index),
@@ -426,22 +452,62 @@ def plot_monotonicity(mono_dist, ic_list, ic_cum_list, lag):
     space(4)
 
 
+def calculate_monotonicity(_lag):
+    if _lag != 1:
+        factor_matrix = _factor_2_new[dummy_new].iloc[:-(_lag - 1), :]
+    else:
+        factor_matrix = _factor_2_new[dummy_new]
+    T21 = time.perf_counter()
+    ret_matrix = (ret_new[dummy_new] + 1).rolling(_lag).apply(np.prod) - 1
+    ret_boxes_matrix = (ret_boxes_df + 1).rolling(_lag).apply(np.prod) - 1
+    cum_ret_boxes_matrix = annual_return(ret_boxes_matrix)
+    T22 = time.perf_counter()
+    print('矩阵计算用时：', T22 - T21)
+    _ic_df, _ic_cum, _mono_dist = monotonicity(factor=factor_matrix, ret=ret_matrix.iloc[(_lag - 1):, :],
+                                               ret_df=cum_ret_boxes_matrix)
+    T23 = time.perf_counter()
+    print('单调性计算用时：', T23 - T22)
+    # ic_cum_list.append(_ic_cum)
+    # mono_dist_list.append(_mono_dist)
+    # cum_ret_boxes_matrix_list.append(cum_ret_boxes_matrix)
+    return _mono_dist, _ic_cum
+
+
+def multi_process_cal_mono(lag_list):
+    progress_text = "单调性计算中.请等待."
+    my_bar = st.progress(0, text=progress_text)
+    mono_dist_list = []
+    ic_cum_list = []
+    res_list = []
+    for lag, i in zip(lag_list, range(len(lag_list))):
+        res_list.append((calculate_monotonicity(lag)))
+        my_bar.progress(i,text=progress_text)
+    for res in res_list:
+        mono_dist, _ic_cum = res
+        mono_dist_list.append(mono_dist)
+        ic_cum_list.append(_ic_cum)
+    return mono_dist_list, ic_cum_list
+
+
 # 净值曲线展示
 path = 'D:\Ruiwen\PythonProject\Training\pickle_data'
-lists = os.listdir(path)
-first_name = ''
-file_name = st.selectbox('您想调取什么时间段的数据？', lists)
-if file_name != '':
-    with open(path + '\\' + file_name + '\\' + 'test.pkl', 'rb') as f:
+list1 = os.listdir(path)
+
+# 选择某一段回测
+folder_name = st.selectbox('您想调用哪一段回测数据？', list1)
+if folder_name != '':
+    # 选择回测使用的nmlz天数
+    son_path = path + '\\' + folder_name
+    list2 = os.listdir(son_path)
+    son_folder_name = st.selectbox('请选择nmlz天数。', list2)
+    with open(son_path + '\\' + son_folder_name + '\\' + 'test.pkl', 'rb') as f:
         data = pickle.load(f)
         # 选择需要的方法
         key_list = []
         for key in data.keys():
             key_list.append(key)
-        method = st.selectbox("您想要观察的回测的方法是？", key_list)
-        ret_total = data[method]['ret_total']
-        ret_top = data[method]['ret_top']
-        ret_bot = data[method]['ret_bot']
+        method = st.selectbox("您想要观察的因子2【即条件因子】回测的方法是？", key_list)
+        return_matrix = data[method]['return_matrix']
         ret_boxes_df = data[method]['ret_boxes_df']
         _factor_2_new = data[method]['_factor_2_new']
         dummy_new = data[method]['dummy_new']
@@ -450,19 +516,15 @@ if file_name != '':
         factor_name2 = data[method]['factor_name2']
 
         ic_df = calculate_ic(_factor_2_new, ret_new)
-        plot_return(total_return_matrix=(ret_total + 1).cumprod() / (ret_total.iloc[0] + 1),
-                    top_return_matrix=(ret_top + 1).cumprod() / (ret_top + 1).iloc[0],
-                    bottom_return_matrix=(ret_bot + 1).cumprod() / (ret_bot + 1).iloc[0], ic_df=ic_df, method=method,
-                    factor_name1=factor_name1,
-                    factor_name2=factor_name2)
+        plot_return(return_matrix=return_matrix, ic_df=ic_df,
+                    method=method, factor_name1=factor_name1, factor_name2=factor_name2)
 
         # 单调性
         lag_list = [1, 5, 20]
         ic = 0
         ic_cum_list = []
         mono_dist_list = []
-
-
+        cum_ret_boxes_matrix_list = []
 
         # 去除dist的空值
         # 计算因子暴露
@@ -473,21 +535,12 @@ if file_name != '':
         plot_exposure(valid_number_matrix=valid_number_matrix, dist_matrix=dist_matrix)
 
         # 单调性展示
-        progress_text = "单调性计算中.请等待."
-        my_bar = st.progress(0, text=progress_text)
         # 按照滞后期数的循环
-        for _lag, percent_complete in zip(lag_list, range(len(lag_list))):
-            if _lag != 1:
-                factor_matrix = _factor_2_new[dummy_new].iloc[:-(_lag - 1), :]
-            else:
-                factor_matrix = _factor_2_new[dummy_new]
-            ret_matrix = (ret_new[dummy_new] + 1).rolling(_lag).apply(np.prod) - 1
-            ret_boxes_matrix = (ret_boxes_df + 1).rolling(_lag).apply(np.prod) - 1
-            _ic, _ic_cum, _mono_dist = monotonicity(factor=factor_matrix, ret=ret_matrix.iloc[(_lag - 1):, :],
-                                                    ret_df=ret_boxes_matrix)
-            if _lag == 1:
-                ic = _ic
-            ic_cum_list.append(_ic_cum)
-            mono_dist_list.append(_mono_dist)
-            my_bar.progress(percent_complete + 1, text=progress_text)
-        plot_monotonicity(mono_dist=mono_dist_list, ic_list=ic, ic_cum_list=ic_cum_list, lag=_lag)
+        T3 = time.perf_counter()
+        st.header('单调性')
+        plot_boxes_return(ret_boxes_df)
+        # mono_dist_list, ic_cum_list = multi_process_cal_mono(lag_list)
+        # my_bar = st.empty()
+        # T4 = time.perf_counter()
+        # print('单调性运算用时：', T4 - T3)
+        # plot_monotonicity(mono_dist=mono_dist_list, ic_df=ic_df, ic_cum_list=ic_cum_list)

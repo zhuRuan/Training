@@ -1,34 +1,49 @@
-#起始时间设置
-start_day = '20170101'
-end_day= '20201231'
+import datetime
+from multiprocessing import cpu_count
+# 起始时间设置
+start_day = '20130101'
+end_day = '20201231'
+start_date = datetime.datetime.strptime(start_day, '%Y%m%d')
+end_date = datetime.datetime.strptime(end_day, '%Y%m%d')
 
-#回溯期
-trl_tuple = (10,)
 
-# 归一化读取的前置天数
-nmlz_day = 10
+
+# 回溯期
+trl_tuple = (10,20,30,40)
+
+# 归一化读取的前置天数(未设置循环）
+nmlz_days_tuple = (10,20,30,40)
 
 # 做空或做多的比例
-ratio = 0.1
+lambda_ratio = 0.2
+
+# 分层回测使用的盒子数量
+boxes_numbers = 10
 
 # 第一个因子中选择TOP或者BOTTOM的比例
 top_ratio = 0.2
 
 # 计算方法设置
-calc_method = ('std',)
-#'std_ratio','mean_diff','mean') # 总共有('std','std_ratio','mean_diff','mean')四种可以选择
+calc_method = ('std','std_ratio','mean_diff','mean' )  # 总共有('std','std_ratio','mean_diff','mean')四种可以选择
+
+# 成分股选择
+sector_member = '中证500'#可选：'中证500','中证1000','中证全指','国证2000','沪深300'
 
 # 因子设置（未实装）
-factor_1 = 'dv_ttm' # 因子1：用于筛选可用的因子2天数
-factor_2 = 'turnover_rate' # 因子2：用于计算因子值
+factor_1 = 'pe'  # 因子1：用于筛选可用的因子2天数
+factor_2 = 'total_mv'  # 因子2：用于计算因子值
 
 # 因子1截取位置
-partition_loc = 'TOP' # 可选TOP或BOTTOM。选择TOP：选取因子1的值排名靠前的天数；选取BOTTOM：选取因子1的值靠后的天数。
+partition_loc = 'TOP'  # 可选TOP或BOTTOM。选择TOP：选取因子1的值排名靠前的天数；选取BOTTOM：选取因子1的值靠后的天数。
 
-#参考基准
+# 参考基准
+# 目前默认参考基准为指数的算术平均
 
+# 运行参数控制
+# 线程数量控制
+cpu_number = cpu_count()-3
 
-
-
+# 存储位置
+save_path = 'pickle_data'
 
 

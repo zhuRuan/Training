@@ -1,11 +1,13 @@
 # coding=utf-8
 import pickle
+
+import pandas
 import pandas as pd
 import numpy as np
 import datetime
 
 
-def get_circ_mv(path = 'is/basic/circ_mv.pkl'):
+def get_circ_mv(path='is/basic/circ_mv.pkl'):
     '''
     获取流通市值
     :return:流通市值
@@ -105,7 +107,7 @@ def get_ps_ttm():
         return data
 
 
-def get_total_mv(path = 'is/basic/total_mv.pkl'):
+def get_total_mv(path='is/basic/total_mv.pkl'):
     '''
     获取总市值 （万元）
     :return:总市值 （万元）
@@ -145,7 +147,7 @@ def get_turnover_rate_f():
         return data
 
 
-def get_volumn_ratio(path = 'is/basic/volume_ratio.pkl'):
+def get_volume_ratio(path='is/basic/volume_ratio.pkl'):
     '''
     获取量比
     :return:量比
@@ -155,7 +157,7 @@ def get_volumn_ratio(path = 'is/basic/volume_ratio.pkl'):
         return data
 
 
-def get_close_price(path = 'is/dq/close.pkl'):
+def get_close_price(path='is/dq/close.pkl'):
     '''
         获取收盘价格
         :return:收盘价格
@@ -165,7 +167,7 @@ def get_close_price(path = 'is/dq/close.pkl'):
         return data
 
 
-def get_adj_factor(path = 'is/dq_adj_factor/adj_factor.pkl'):
+def get_adj_factor(path='is/dq_adj_factor/adj_factor.pkl'):
     '''
        获取调整后收盘价格
        :return:收盘价格
@@ -175,12 +177,52 @@ def get_adj_factor(path = 'is/dq_adj_factor/adj_factor.pkl'):
         return data
 
 
-def get_China_Securities_Index():
+def get_China_Securities_Index500():
     '''
      获取所有个股是否为中证500的True_False矩阵
      :return:中证500True_False矩阵
     '''
     with open('is/sector_member/中证500.pkl', 'rb') as f:
+        data = pickle.load(f)
+        return data
+
+
+def get_China_Securities_Index1000():
+    '''
+     获取所有个股是否为中证500的True_False矩阵
+     :return:中证500True_False矩阵
+    '''
+    with open('is/sector_member/中证1000.pkl', 'rb') as f:
+        data = pickle.load(f)
+        return data
+
+
+def get_Comprehensive_CSI():
+    '''
+     获取所有个股是否为中证500的True_False矩阵
+     :return:中证500True_False矩阵
+    '''
+    with open('is/sector_member/中证全指.pkl', 'rb') as f:
+        data = pickle.load(f)
+        return data
+
+
+def get_National_Certificate20000():
+    '''
+     获取所有个股是否为中证500的True_False矩阵
+     :return:中证500True_False矩阵
+    '''
+    with open('is/sector_member/国证2000.pkl', 'rb') as f:
+        data = pickle.load(f)
+        return data
+
+
+def get_Shanghai_Shenzhen_300_Index():
+    '''
+     获取所有个股是否为中证500的True_False矩阵
+     :return:中证500True_False矩阵
+    '''
+    with open('is/sector_member/沪深300.pkl', 'rb') as f:
         data = pickle.load(f)
         return data
 
@@ -194,6 +236,8 @@ def get_ret_matrix():
     adj_factor = get_adj_factor()
     adj_close = close * adj_factor
     ret_matrix = adj_close.pct_change(periods=1, fill_method='pad')
+    # ret_matrix = ret_matrix.sub(ret_matrix.median(axis=1), axis=0)
+
     return ret_matrix
 
 
@@ -206,12 +250,10 @@ def get_suspend():
         data = pickle.load(f)
         return data
 
-def change(suspend):
 
+def change(suspend):
     suspend.index = pd.to_datetime(suspend.index)
     s_date = datetime.datetime.strptime('20130606', '%Y%m%d') - datetime.timedelta(days=1)
     e_date = datetime.datetime.strptime('20131016', '%Y%m%d')
     suspend = (suspend.query('@s_date< index <@e_date'))
     return suspend
-
-
