@@ -57,7 +57,7 @@ def annual_revenue(return_matrix: pd.DataFrame):
 
 
 def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method, trl, nmlz_days, sector_member, factor_1_name,
-                 factor_2_name):
+                 factor_2_name, partition_loc):
     '''生成三个部分的收益分析表格'''
 
     annual_ret, sharp, maximum_draw, excess_return = annual_revenue_total(return_matrix=return_matrix)
@@ -68,11 +68,12 @@ def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method, trl, 
 
     # 计算IC和IC/IR
     IC_mean = ic_df.mean(axis=0).iloc[0]
-    ICIR = np.round(IC_mean / (ic_df.std(axis=0).iloc[0]+1e-8), 4)
+    ICIR = np.round(IC_mean / (ic_df.std(axis=0).iloc[0] + 1e-8), 4)
     IC_mean = np.round(IC_mean, 4)
 
     # 构造dataframe表格
-    table = pd.DataFrame({'因子名称': [factor_1_name, factor_1_name, factor_1_name], '用作条件的因子': [factor_2_name, factor_2_name, factor_2_name],
+    table = pd.DataFrame({'因子名称': [factor_1_name, factor_1_name, factor_1_name],
+                          '用作条件的因子': [factor_2_name, factor_2_name, factor_2_name],
                           '使用的参数': [method, method, method], '归属指数': [sector_member, sector_member, sector_member],
                           '科目类别': list(return_matrix.columns.to_list()[:3])})
     table['partion_loc'] = partition_loc
@@ -93,7 +94,7 @@ def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method, trl, 
 
 
 def detail_table(total_return_matrix, top_return_matrix, bottom_return_matrix, portfolio_return_matrix, ic_df, trl,
-                 nmlz_days, factor_1_name, factor_2_name, method='', sector_member=''):
+                 nmlz_days, factor_1_name, factor_2_name, method='', sector_member='', partition_loc=''):
     '''
     生成参数汇总表
     :param total_return_matrix:
@@ -116,7 +117,8 @@ def detail_table(total_return_matrix, top_return_matrix, bottom_return_matrix, p
     # I expect to see RuntimeWarnings in this block
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=RuntimeWarning)
-        table = table_return(return_matrix, ic_df, method, trl, nmlz_days, sector_member, factor_1_name, factor_2_name)
+        table = table_return(return_matrix, ic_df, method, trl, nmlz_days, sector_member, factor_1_name, factor_2_name,
+                             partition_loc)
     return table, return_matrix
 
 
@@ -133,25 +135,45 @@ def timing(matrix, _start, _end):
     return _return_matrix
 
 
-def mkdir(parent_path, start_date, end_date, nmlz_days, trl, method, factor_1_name, factor_2_name):
-    dir = parent_path + '\\' + str(start_date.strftime("%Y-%m")) + '_' + str(
-        end_date.strftime("%Y-%m")) + '_' + factor_1_name + '&&' + factor_2_name + '-' + partition_loc + '_trl' + str(trl)
-    # 判断父文件夹（trl）是否存在，并创建父文件夹
-    if not os.path.exists(dir):
-        os.makedirs(dir)
-    # 创建子文件夹
+def mk_dir(path):
+    # 判断父文件夹（time_period）是否存在，并创建父文件夹
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+
+def set_factor_dir(parent_path, start_date, end_date, factor_1_name, factor_2_name):
+    # 判断父文件夹（time_period）是否存在，并创建父文件夹
+    dir1 = parent_path + '\\' + str(start_date.strftime("%Y-%m")) + '_' + str(end_date.strftime("%Y-%m"))
+    mk_dir(dir1)
+
+    # 创建因子名文件夹
+    dir2 = dir1 + '\\' + factor_1_name + '&&' + factor_2_name
+    mk_dir(dir2)
+    return dir2
+
+
+def mk_all_dir(dir2, nmlz_days, trl, method, partition_loc):
+    # 创建TOP、BOTTOM文件夹
+    dir3 = dir2 + '\\' + partition_loc
+    mk_dir(dir3)
+
+    # 创建trl文件夹
+    dir4 = dir3 + "\\" + 'trl_days_' + str(trl)
+    mk_dir(dir4)
+
+    # 创建nmlz文件夹
     # 判断是否有重名的文件，有：则创造新的nmlz文件夹以呈放文件
     i = 0
-    son_dir = dir + '\\nmlz_days' + str(nmlz_days)
-    while os.path.exists(son_dir + '\\table_' + method + '.csv'):
+    son_dir_path = dir4 + '\\nmlz_days_' + str(nmlz_days)
+    while os.path.exists(son_dir_path + '\\table_' + method + '.csv'):
         i = i + 1
-        if not os.path.exists(son_dir + '_' + str(i) + '\\table_' + method + '.csv'):
-            son_dir = son_dir + '_' + str(i)
+        if not os.path.exists(son_dir_path + '_' + str(i) + '\\table_' + method + '.csv'):
+            son_dir_path = son_dir_path + '_' + str(i)
             break
     # 若准备放文件
-    if not os.path.exists(son_dir):
-        os.makedirs(son_dir)
-    return son_dir  # 返回子目录的路径
+    if not os.path.exists(son_dir_path):
+        os.makedirs(son_dir_path)
+    return son_dir_path  # 返回子目录的路径
 
 
 def set_sector_dir(sector_memeber_name):
@@ -212,6 +234,34 @@ def get_factor_matrix(factor_name):
         print('获取的方法不存在')
 
 
+def multi_process_data_analysis(_input):
+    res, factor_1_name, factor_2_name, dir2 = _input
+    # 计算持仓矩阵和最终的收益率
+    portfolio, ret_total, ret_boxes_df, ret_top, ret_bot, method, _factor_2_new, dummy_new, ret_new, ret_portfolio, trl_days, nmlz_days, partition_loc = res
+
+    # 创建一个文件夹，用于装不同方法的数据
+    save_dir_path = mk_all_dir(dir2, nmlz_days=nmlz_days, trl=trl_days, method=method, partition_loc=partition_loc)
+
+    # 计算IC值
+    ic_df = calculate_ic(_factor_2_new, ret_new.shift(1))
+
+    # 参数汇总表
+    detail_tab, return_matrix = detail_table(total_return_matrix=ret_total, top_return_matrix=ret_top,
+                                             bottom_return_matrix=ret_bot,
+                                             portfolio_return_matrix=ret_portfolio, ic_df=ic_df, trl=trl_days,
+                                             nmlz_days=nmlz_days, factor_1_name=factor_1_name,
+                                             factor_2_name=factor_2_name,
+                                             method=method, sector_member=sector_member, partition_loc=partition_loc)
+
+    # streamlit需要用的python变量打包
+    plot_dict = {'method': method, 'trl_days': trl_days, 'nmlz_days': nmlz_days, 'return_matrix': return_matrix,
+                 'ret_boxes_df': ret_boxes_df, '_factor_2_new': _factor_2_new, 'dummy_new': dummy_new,
+                 'ret_new': ret_new, 'factor_name1': factor_1_name, 'factor_name2': factor_2_name, }
+
+    return detail_tab, plot_dict, save_dir_path, method, trl_days, nmlz_days, partition_loc
+    # 循环结束
+
+
 # 生成四个矩阵(dataframe)：收益率，是否为指定成分股的dummy，市值， 波动率
 def run_back_testing_new(factor_1_name, factor_2_name):
     try:
@@ -233,43 +283,44 @@ def run_back_testing_new(factor_1_name, factor_2_name):
         # T_read2 = time.perf_counter()
         # print("读取数据用时：", T_read2 - T_read1)
 
-        # 计算新因子，并计算其他变量
-        res_list = []
-        save_dir = ''
-        for res in compute(ret, dummy, _factor_1_matrix, _factor_2_matrix):  # 把compute的数据装载到list里，可以提前释放内存。
-            # 计算持仓矩阵和最终的收益率
-            portfolio, ret_total, ret_boxes_df, ret_top, ret_bot, method, _factor_2_new, dummy_new, ret_new, ret_portfolio, trl, nmlz_days = res
+        dir2 = set_factor_dir(parent_path, start_date, end_date, factor_1_name, factor_2_name)
+        # 计算新因子，把compute的数据装载到list里，可以提前释放内存。
+        new_res_list = []
+        for return_items in compute(ret, dummy, _factor_1_matrix, _factor_2_matrix):
+            portfolio, ret_total, ret_boxes_df, ret_top, ret_bot, method, _factor_2_new, dummy_new, ret_new, ret_portfolio, trl, nmlz_days, partition_loc = return_items
+            new_res_list.append(((
+                                 portfolio, ret_total, ret_boxes_df, ret_top, ret_bot, method, _factor_2_new, dummy_new,
+                                 ret_new, ret_portfolio, trl, nmlz_days, partition_loc), factor_1_name, factor_2_name,
+                                 dir2))
 
-            # 创建一个文件夹，用于装不同方法的数据
-            save_dir = mkdir(parent_path, start_date=start_date, end_date=end_date, nmlz_days=nmlz_days, trl=trl,
-                        method=method, factor_1_name= factor_1_name, factor_2_name= factor_2_name)
-
-            # 计算IC值
-            ic_df = calculate_ic(_factor_2_new, ret_new.shift(1))
-
-            # 参数汇总表
-            detail_tab, return_matrix = detail_table(total_return_matrix=ret_total, top_return_matrix=ret_top,
-                                                     bottom_return_matrix=ret_bot,
-                                                     portfolio_return_matrix=ret_portfolio, ic_df=ic_df, trl=trl,
-                                                     nmlz_days=nmlz_days, factor_1_name=factor_1_name, factor_2_name=factor_2_name,
-                                                     method=method, sector_member=sector_member)
-
-            # streamlit需要用的python变量打包
-            plot_dict = {'return_matrix': return_matrix, 'ret_boxes_df': ret_boxes_df,
-                         '_factor_2_new': _factor_2_new, 'dummy_new': dummy_new, 'ret_new': ret_new,
-                         'factor_name1': factor_1_name, 'factor_name2': factor_2_name}
-            plot_dict_dict[method] = plot_dict
+        # 多进程运算，得到所需变量
+        with ProcessPoolExecutor(max_workers=cpu_number) as executor:
+            return_list = executor.map(multi_process_data_analysis, new_res_list)
+        # 将变量打包
+        for _a in return_list:
+            detail_tab, plot_dict, save_dir_path, method, trl_days, nmlz_days, partition_loc = _a
+            # 判断目标是否已经在字典中存在，若无，则添加
+            if not (partition_loc + str(trl_days) + str(nmlz_days)) in plot_dict_dict.keys():
+                plot_dict_dict[partition_loc + '_trl_days_' + str(trl_days) + '_nmlz_days_' + str(nmlz_days)] = {}
+            plot_dict_dict[partition_loc + str(trl_days) + str(nmlz_days)][method] = plot_dict
 
             # pickle表格
-            pickle_path = save_dir + '\\table_' + method + str('.csv')
+            pickle_path = save_dir_path + '\\table_' + method + str('.csv')
             detail_tab.to_csv(pickle_path, index=False, encoding='gbk')
 
             df_table_list.append(detail_tab)
-            # 循环结束
-
         # pickle Python变量，便于调取数据
-        with open(save_dir + '\\' + 'test.pkl', 'wb') as f:
-            pickle.dump(plot_dict_dict, f, 0)
+        python_variable_path = dir2 + '\\' + 'python_variable.pkl'
+        if os.path.exists(python_variable_path):  # 若已存在一个pickle文件，则读取并更新
+            old_plot_dict_dict = []
+            with open(python_variable_path, 'rb') as f:  # 读取已有字典
+                old_plot_dict_dict = pickle.load(f)
+                old_plot_dict_dict.update(plot_dict_dict)
+            with open(python_variable_path, 'wb') as f2:
+                pickle.dump(old_plot_dict_dict, f2, 0)  # 存储更新后的字典
+        else:
+            with open(python_variable_path, 'wb') as f:
+                pickle.dump(plot_dict_dict, f, 0)  # 存储一个字典
         return df_table_list
 
     except Exception as e:

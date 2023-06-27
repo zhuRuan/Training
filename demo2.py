@@ -6,8 +6,7 @@ import traceback
 import numpy as np
 import pandas as pd
 from back_testing.back_testing2 import run_back_testing_new
-from constant import trl_tuple, nmlz_days_tuple, start_date, end_date, factor_1_name_list, factor_2_name_list, \
-    partition_loc, save_path
+from constant import  factor_1_name_list, factor_2_name_list, save_path
 from tqdm import tqdm
 
 
@@ -47,12 +46,7 @@ if __name__ == '__main__':
             factor_1 = pair[0]
             factor_2 = pair[1]
             pbar.set_postfix({'factor_1': factor_1, 'factor_2': factor_2})
-            try:
-                back_testing_return = run_back_testing_new(factor_1, factor_2)
-            except Exception as e:
-                traceback.print_exc()
-                back_testing_return = None
-                print(factor_1, factor_2)
+            back_testing_return = run_back_testing_new(factor_1, factor_2)
 
             # 判断返回的值，并处理文件
             if back_testing_return != None: # 若符合条件，则保存csv

@@ -62,7 +62,7 @@ def get_return_rate(input_list_for_return_rate):
     input_list = []
     # 准备多线程的输入
     for output in input_list_for_return_rate:
-        m3, m_top, m_bot, boxes_list, method, new_factor_matrix_norm, dummy_new, ret_matrix_cut, trl, nmlz_days = output
+        m3, m_top, m_bot, boxes_list, method, new_factor_matrix_norm, dummy_new, ret_matrix_cut, trl, nmlz_days,partition_loc = output
         input_list.append((ret_matrix_cut, m_top, m_bot, boxes_list, dummy_new))
     with ProcessPoolExecutor(max_workers=cpu_number) as executor:
         return executor.map(compute_return_rate, input_list)

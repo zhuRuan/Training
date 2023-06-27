@@ -2,7 +2,7 @@ import time
 
 import pandas as pd
 import numpy as np
-from constant import calc_method, trl_tuple, nmlz_days_tuple, top_ratio, partition_loc, lambda_ratio, boxes_numbers, cpu_number
+from constant import calc_method, trl_tuple, nmlz_days_tuple, top_ratio, partition_loc_tuple, lambda_ratio, boxes_numbers, cpu_number
 from concurrent.futures import ProcessPoolExecutor
 
 h = 0
@@ -207,7 +207,7 @@ def calculate_new_factor(a):
     :param a:
     :return:
     '''
-    A_matrix, B_matrix, trl, method = a
+    A_matrix, B_matrix, trl, method, partition_loc = a
     if method == 'std':
         if partition_loc == 'TOP':
             _return = A_matrix.apply(group_rolling2_std_top, factor_1=A_matrix, factor_2=B_matrix, trl=trl,
@@ -264,7 +264,7 @@ def calculate_new_factor(a):
             _return = A_matrix.apply(group_rolling2_std_ratio_top, factor_1=A_matrix, factor_2=B_matrix, trl=trl,
                                      axis=1)
             print('使用的partition_loc名称错误,请检查输入：', partition_loc)
-    return _return.iloc[trl - 1:, ], method, trl
+    return _return.iloc[trl - 1:, ], method, trl, partition_loc
 
 
 def normalization(matrix: pd.DataFrame, nmlz_day: int):
@@ -297,8 +297,9 @@ def multi_process_new_factor(A_matrix: pd.DataFrame, B_matrix: pd.DataFrame):
     input_list = []
     for method in calc_method:
         for trl in trl_tuple:
-            input_list.append(
-                (A_matrix, B_matrix, trl, method))  # 为calculate_new_factor方法准备输入参数,分别为A矩阵，B矩阵，回溯日期，方法名称
+            for partition_loc in partition_loc_tuple:
+                input_list.append(
+                    (A_matrix, B_matrix, trl, method, partition_loc))  # 为calculate_new_factor方法准备输入参数,分别为A矩阵，B矩阵，回溯日期，方法名称
     # 多线程获取因子数据
     with ProcessPoolExecutor(max_workers=cpu_number) as executor:
         return executor.map(calculate_new_factor, input_list)  # 按回溯期内VOL最小的lambda天对应的CAP，求均值
@@ -311,7 +312,7 @@ def computing_portfolio_matrix(_x):
     :return:
     '''
     # 计算排序矩阵
-    new_factor_matrix, dummy, method, nmlz_days, trl = _x  # 赋值
+    new_factor_matrix, dummy, method, nmlz_days, trl, partition_loc = _x  # 赋值
     new_factor_matrix_norm = normalization(new_factor_matrix, nmlz_day=nmlz_days)  # 归一化，Z-score标准化方法,会损失一部分数据
     new_factor_matrix_norm_dummy = new_factor_matrix_norm[dummy]  # 按照dummy矩阵判断是否是指定的成分股
     rank_matrix = new_factor_matrix_norm_dummy.rank(axis=1, method='dense', ascending=True, na_option='keep',
@@ -327,7 +328,7 @@ def computing_portfolio_matrix(_x):
     m_bot = rank_matrix <= lambda_ratio  # 因子尾部矩阵
     m_t_B = m_top + m_bot  # 头部与尾部矩阵
 
-    return m_t_B, m_top, m_bot, m_boxes_list, method, new_factor_matrix_norm, dummy, trl, nmlz_days
+    return m_t_B, m_top, m_bot, m_boxes_list, method, new_factor_matrix_norm, dummy, trl, nmlz_days, partition_loc
 
 
 def multi_process_portfolio(input_list_for_portfolio, dummy: pd.DataFrame):
@@ -336,13 +337,18 @@ def multi_process_portfolio(input_list_for_portfolio, dummy: pd.DataFrame):
     input_list2 = []
      # 新的dummy矩阵，index要完全匹配
     for res in input_list_for_portfolio:
-        _new_facotr_matrix, method, trl = res
+        _new_facotr_matrix, method, trl, partition_loc = res
         for nmlz_days in nmlz_days_tuple:
             dummy_new = dummy.iloc[trl + nmlz_days - 2:, :]
-            input_list2.append((_new_facotr_matrix, dummy_new, method, nmlz_days, trl))
+            input_list2.append((_new_facotr_matrix, dummy_new, method, nmlz_days, trl, partition_loc))
     # 多线程获取持仓矩阵
     with ProcessPoolExecutor(max_workers=cpu_number) as executor:
-        return executor.map(computing_portfolio_matrix, input_list2)  # 返回了持仓矩阵到上级方法
+        computing_portfolio_matrix_return_list = executor.map(computing_portfolio_matrix, input_list2)  # 返回了持仓矩阵到上级方法
+    _return_list = []
+    for item in computing_portfolio_matrix_return_list:
+        m_t_B, m_top, m_bot, m_boxes_list, method, new_factor_matrix_norm, dummy, trl, nmlz_days, partition_loc = item
+        _return_list.append((m_t_B, m_top, m_bot, m_boxes_list, method, new_factor_matrix_norm, dummy, trl, nmlz_days, partition_loc))
+    return _return_list
 
 
 def get_portfolio(A_matrix, B_matrix, dummy):

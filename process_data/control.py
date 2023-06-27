@@ -28,9 +28,9 @@ def compute(ret_matrix: pd.DataFrame, dummy: pd.DataFrame, A_matrix: pd.DataFram
 
     # 存储结果
     for output in output_list_from_portf:
-        m_t_b, m_top, m_bot, boxes_list, method, new_factor_matrix_norm, dummy_new, trl, nmlz_days = output
+        m_t_b, m_top, m_bot, boxes_list, method, new_factor_matrix_norm, dummy_new, trl, nmlz_days,partition_loc = output
         portfolio_output_list.append((m_t_b, m_top, m_bot, boxes_list, method, new_factor_matrix_norm, dummy_new,
-                                      ret_matrix.iloc[nmlz_days + trl - 2:, :].copy(deep=True), trl, nmlz_days))
+                                      ret_matrix.iloc[nmlz_days + trl - 2:, :].copy(deep=True), trl, nmlz_days, partition_loc))
 
     # 计算组合收益率
     # t_revenue1 = time.perf_counter()
@@ -44,9 +44,9 @@ def compute(ret_matrix: pd.DataFrame, dummy: pd.DataFrame, A_matrix: pd.DataFram
         return_rate_output_list.append((total_ret, ret_df, ret_top, ret_bot, ret_total_portfolio))
 
     for x, y in zip(portfolio_output_list, return_rate_output_list):
-        m_t_b, m_top, m_bot, boxes_list, method, new_factor_matrix_norm, dummy_new, ret_matrix_cut, trl, nmlz_days = x
+        m_t_b, m_top, m_bot, boxes_list, method, new_factor_matrix_norm, dummy_new, ret_matrix_cut, trl, nmlz_days,partition_loc = x
         total_ret, ret_df, ret_top, ret_bot, ret_total_portfolio = y
         return_list.append(
             (m_t_b, total_ret, ret_df, ret_top, ret_bot, method, new_factor_matrix_norm, dummy_new, ret_matrix_cut,
-             ret_total_portfolio, trl, nmlz_days))
+             ret_total_portfolio, trl, nmlz_days, partition_loc))
     return return_list

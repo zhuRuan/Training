@@ -15,9 +15,11 @@ from concurrent.futures import ProcessPoolExecutor
 from empyrical import max_drawdown, sharpe_ratio, aggregate_returns, annual_return, cum_returns
 import datetime
 
+path = 'D:\Ruiwen\PythonProject\Training\pickle_data'
 st.set_page_config(layout="wide", page_icon="🧊", page_title="回测结果展示")
 st.title("回测结果展示")
-st.markdown('当前源代码更新日期为：**:blue[2023年6月21日]**', unsafe_allow_html=False)
+title_str = '当前源代码更新日期为：**:blue[' + str(time.ctime(os.path.getmtime(path))) + ']**'
+st.markdown(title_str, unsafe_allow_html=False)
 sidebar = st.sidebar
 now_time = dt.now()
 
@@ -101,7 +103,7 @@ def calculate_ic(factor: pd.DataFrame(), ret: pd.DataFrame()):
 
     a1 = (_factor.sub(_factor.mean(axis=1), axis=0))
     a2 = (_ret.sub(_ret.mean(axis=1), axis=0))
-    ic = (a1 * a2).mean(axis=1) / (_factor.std(axis=1)+1e-8) / (_ret.std(axis=1)+1e-8)
+    ic = (a1 * a2).mean(axis=1) / (_factor.std(axis=1) + 1e-8) / (_ret.std(axis=1) + 1e-8)
 
     # 将ic从series变为dataframe
     ic_df = pd.DataFrame(ic)
@@ -165,7 +167,7 @@ def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method, facto
     annual_ret_3, sharp_3, maximum_draw_3 = comprehensive_income_analysis(
         return_matrix=return_matrix.iloc[2 * int(len(return_matrix) / 3):, :])
     IC_mean = ic_df.mean(axis=0).round(3).iloc[0]
-    ICIR = np.round(IC_mean / (ic_df.std(axis=0).iloc[0]+1e-8), 3)
+    ICIR = np.round(IC_mean / (ic_df.std(axis=0).iloc[0] + 1e-8), 3)
     return pd.DataFrame(
         {'因子名称': [factor_name1, factor_name1, factor_name1], '条件因子': [factor_name2, factor_name2, factor_name2],
          '参数1': [method, method, method], '科目类别': list(return_matrix.columns.to_list()[:3]), '年化收益率 （全时期）': annual_ret,
@@ -271,8 +273,8 @@ def plot_return(return_matrix, ic_df, method, factor_name1, factor_name2):
 
 def kernel(dist_matrix: pd.DataFrame, trace_name='a'):
     _dist_matrix = dist_matrix.copy(deep=True).reset_index(drop=True)
-    x_range = linspace(dist_matrix['CAP'].median() - 3 * (dist_matrix['CAP'].std()+1e-8),
-                       dist_matrix['CAP'].median() + 3 * (dist_matrix['CAP'].std()+1e-8), len(dist_matrix['CAP']))
+    x_range = linspace(dist_matrix['CAP'].median() - 3 * (dist_matrix['CAP'].std() + 1e-8),
+                       dist_matrix['CAP'].median() + 3 * (dist_matrix['CAP'].std() + 1e-8), len(dist_matrix['CAP']))
     kde = gaussian_kde(dist_matrix['CAP'])
     df = pd.DataFrame({'x_range': x_range, 'x_kde': kde(x_range)})
     trace = go.Scatter(x=df['x_range'], y=df['x_kde'], mode='markers', name=trace_name)
@@ -472,6 +474,7 @@ def calculate_monotonicity(_lag):
     # cum_ret_boxes_matrix_list.append(cum_ret_boxes_matrix)
     return _mono_dist, _ic_cum
 
+
 def multi_process_cal_mono(lag_list):
     progress_text = "单调性计算中.请等待."
     my_bar = st.progress(0, text=progress_text)
@@ -480,7 +483,7 @@ def multi_process_cal_mono(lag_list):
     res_list = []
     for lag, i in zip(lag_list, range(len(lag_list))):
         res_list.append((calculate_monotonicity(lag)))
-        my_bar.progress(i,text=progress_text)
+        my_bar.progress(i, text=progress_text)
     for res in res_list:
         mono_dist, _ic_cum = res
         mono_dist_list.append(mono_dist)
@@ -488,66 +491,69 @@ def multi_process_cal_mono(lag_list):
     return mono_dist_list, ic_cum_list
 
 
+def choose_dir(path, tips):
+    '''
+    选择合适的dir
+    :param path: 母文件夹的路径
+    :param tips: 指定的提示语
+    :return: 返回子文件夹的名称，及子文件夹路径
+    '''
+    dir_list = os.listdir(path)
+    for dir in dir_list:
+        if dir.endswith('.csv') or dir.endswith('.pickle'):
+            dir_list.remove(dir)
+    dir = st.selectbox(tips, dir_list)
+    return dir, path + '\\' + dir
+
+
 # 净值曲线展示
 # 选择指数
-path = 'D:\Ruiwen\PythonProject\Training\pickle_data'
-list1 = os.listdir(path)
-for i in list1: # 排除csv文件
-    if i.endswith('.csv'):
-        list1.remove(i)
-grand_parent_folder_name = st.selectbox("指数成分选择：", list1)
+index, index_dir_path = choose_dir(path=path, tips="指数成分选择：")
+time_period, time_period_dir_path = choose_dir(path=index_dir_path, tips='时间段选择：')
+factor, factor_dir_path = choose_dir(path=time_period_dir_path, tips='测试因子选择：')
+partition_loc, partition_loc_dir_path = choose_dir(path=factor_dir_path, tips='因子高值低值选择：')
+trl_days, trl_days_dir_path = choose_dir(path=partition_loc_dir_path, tips='回溯天数选择：')
+nmlz_days, nmlz_days_dir_path = choose_dir(path=trl_days_dir_path, tips='归一化天数选择')
+key_list = []
+with open(factor_dir_path + '\\' + 'python_variable.pkl', 'rb') as f:
+    data = pickle.load(f)
+    # 选择需要的方法
+    for key in data[partition_loc + str(trl_days) + str(nmlz_days)].keys():
+        key_list.append(key)
+method = st.selectbox("您想要观察的因子2【即条件因子】回测的方法是？", key_list)
+return_matrix = data[partition_loc + str(trl_days) + str(nmlz_days)][method]['return_matrix']
+ret_boxes_df = data[partition_loc + str(trl_days) + str(nmlz_days)][method]['ret_boxes_df']
+_factor_2_new = data[partition_loc + str(trl_days) + str(nmlz_days)][method]['_factor_2_new']
+dummy_new = data[partition_loc + str(trl_days) + str(nmlz_days)][method]['dummy_new']
+ret_new = data[partition_loc + str(trl_days) + str(nmlz_days)][method]['ret_new']
+factor_name1 = data[partition_loc + str(trl_days) + str(nmlz_days)][method]['factor_name1']
+factor_name2 = data[partition_loc + str(trl_days) + str(nmlz_days)][method]['factor_name2']
+ic_df = calculate_ic(_factor_2_new, ret_new)
+plot_return(return_matrix=return_matrix, ic_df=ic_df,
+            method=method, factor_name1=factor_name1, factor_name2=factor_name2)
 
-# 选择某一段回测
-if grand_parent_folder_name != '':
-    list2 = os.listdir(path + '\\' + grand_parent_folder_name)
-    path = path + '\\' + grand_parent_folder_name
-    folder_name = st.selectbox('您想调用哪一段回测数据？', list2)
-    if folder_name != '' :
-        # 选择回测使用的nmlz天数
-        son_path = path + '\\' + folder_name
-        list2 = os.listdir(son_path)
-        son_folder_name = st.selectbox('请选择nmlz天数。', list2)
-        with open(son_path + '\\' + son_folder_name + '\\' + 'test.pkl', 'rb') as f:
-            data = pickle.load(f)
-            # 选择需要的方法
-            key_list = []
-            for key in data.keys():
-                key_list.append(key)
-            method = st.selectbox("您想要观察的因子2【即条件因子】回测的方法是？", key_list)
-            return_matrix = data[method]['return_matrix']
-            ret_boxes_df = data[method]['ret_boxes_df']
-            _factor_2_new = data[method]['_factor_2_new']
-            dummy_new = data[method]['dummy_new']
-            ret_new = data[method]['ret_new']
-            factor_name1 = data[method]['factor_name1']
-            factor_name2 = data[method]['factor_name2']
+# 单调性
+lag_list = [1, 5, 20]
+ic = 0
+ic_cum_list = []
+mono_dist_list = []
+cum_ret_boxes_matrix_list = []
 
-            ic_df = calculate_ic(_factor_2_new, ret_new)
-            plot_return(return_matrix=return_matrix, ic_df=ic_df,
-                        method=method, factor_name1=factor_name1, factor_name2=factor_name2)
+# 去除dist的空值
+# 计算因子暴露
+with st.spinner('请等待...'):
+    valid_number_matrix, dist_matrix = exposure(_factor_2_new)
 
-            # 单调性
-            lag_list = [1, 5, 20]
-            ic = 0
-            ic_cum_list = []
-            mono_dist_list = []
-            cum_ret_boxes_matrix_list = []
+# 因子暴露展示
+plot_exposure(valid_number_matrix=valid_number_matrix, dist_matrix=dist_matrix)
 
-            # 去除dist的空值
-            # 计算因子暴露
-            with st.spinner('请等待...'):
-                valid_number_matrix, dist_matrix = exposure(_factor_2_new)
-
-            # 因子暴露展示
-            plot_exposure(valid_number_matrix=valid_number_matrix, dist_matrix=dist_matrix)
-
-            # 单调性展示
-            # 按照滞后期数的循环
-            T3 = time.perf_counter()
-            st.header('单调性')
-            plot_boxes_return(ret_boxes_df)
-            # mono_dist_list, ic_cum_list = multi_process_cal_mono(lag_list)
-            # my_bar = st.empty()
-            # T4 = time.perf_counter()
-            # print('单调性运算用时：', T4 - T3)
-            # plot_monotonicity(mono_dist=mono_dist_list, ic_df=ic_df, ic_cum_list=ic_cum_list)
+# 单调性展示
+# 按照滞后期数的循环
+T3 = time.perf_counter()
+st.header('单调性')
+plot_boxes_return(ret_boxes_df)
+# mono_dist_list, ic_cum_list = multi_process_cal_mono(lag_list)
+# my_bar = st.empty()
+# T4 = time.perf_counter()
+# print('单调性运算用时：', T4 - T3)
+# plot_monotonicity(mono_dist=mono_dist_list, ic_df=ic_df, ic_cum_list=ic_cum_list)
