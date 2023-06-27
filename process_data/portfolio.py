@@ -274,7 +274,7 @@ def normalization(matrix: pd.DataFrame, nmlz_day: int):
     :param nmlz_day: 需要回顾的归一化天数
     :return: 归一化处理后的矩阵（会损失矩阵大小）
     '''
-    std_matrix = matrix.rolling(window=nmlz_day, min_periods=round(1 / 3 * nmlz_day), axis=0).std()  # 获取滚动样本方差
+    std_matrix = matrix.rolling(window=nmlz_day, min_periods=round(1 / 3 * nmlz_day), axis=0).std() + 1e-8  # 获取滚动样本方差
     mean_matrix = matrix.rolling(window=nmlz_day, min_periods=round(1 / 3 * nmlz_day), axis=0).mean()  # 获取滚动样本的均值
     return (matrix.iloc[nmlz_day - 1:, :] - mean_matrix.iloc[nmlz_day - 1:, :]) / std_matrix.iloc[nmlz_day - 1:,
                                                                                   :]  # 对因子矩阵进行归一化
@@ -354,10 +354,10 @@ def get_portfolio(A_matrix, B_matrix, dummy):
     :return: m_t_B, m_top, m_bot, m_boxes_list, method, new_factor_matrix_norm, dummy
     '''
     # 先计算新因子
-    t_cal1 = time.perf_counter()
+    # t_cal1 = time.perf_counter()
     _output_list_factor = multi_process_new_factor(A_matrix=A_matrix, B_matrix=B_matrix)
-    t_cal2 = time.perf_counter()
-    print('因子计算用时(包含在生成持仓矩阵内)：', t_cal2 - t_cal1)
+    # t_cal2 = time.perf_counter()
+    # print('因子计算用时(包含在生成持仓矩阵内)：', t_cal2 - t_cal1)
 
     # 再计算持仓矩阵
     return multi_process_portfolio(input_list_for_portfolio=_output_list_factor, dummy=dummy)

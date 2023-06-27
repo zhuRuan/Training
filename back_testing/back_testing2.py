@@ -56,7 +56,8 @@ def annual_revenue(return_matrix: pd.DataFrame):
         lambda x: format(x, '.2f')).values, maximum_drawdown_series.apply(lambda x: format(x, '.2%')).values
 
 
-def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method, trl, nmlz_days, sector_member):
+def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method, trl, nmlz_days, sector_member, factor_1_name,
+                 factor_2_name):
     '''生成三个部分的收益分析表格'''
 
     annual_ret, sharp, maximum_draw, excess_return = annual_revenue_total(return_matrix=return_matrix)
@@ -67,7 +68,7 @@ def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method, trl, 
 
     IC_mean = ic_df.mean(axis=0).round(3).iloc[0]
     ICIR = np.round(IC_mean / ic_df.std(axis=0).iloc[0], 3)
-    table = pd.DataFrame({'因子名称': [factor_1, factor_1, factor_1], '用作条件的因子': [factor_2, factor_2, factor_2],
+    table = pd.DataFrame({'因子名称': [factor_1_name, factor_1_name, factor_1_name], '用作条件的因子': [factor_2_name, factor_2_name, factor_2_name],
                           '使用的参数': [method, method, method], '归属指数': [sector_member, sector_member, sector_member],
                           '科目类别': list(return_matrix.columns.to_list()[:3])})
     table['partion_loc'] = partition_loc
@@ -88,7 +89,7 @@ def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method, trl, 
 
 
 def detail_table(total_return_matrix, top_return_matrix, bottom_return_matrix, portfolio_return_matrix, ic_df, trl,
-                 nmlz_days, method='', sector_member=''):
+                 nmlz_days, factor_1_name, factor_2_name, method='', sector_member=''):
     return_matrix = pd.DataFrame(
         [total_return_matrix, top_return_matrix, bottom_return_matrix, portfolio_return_matrix]).T
     return_matrix.columns = ['LT_SB', "Long_top", "Long_bottom", "Portfolio"]
@@ -96,7 +97,7 @@ def detail_table(total_return_matrix, top_return_matrix, bottom_return_matrix, p
     # I expect to see RuntimeWarnings in this block
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=RuntimeWarning)
-        table = table_return(return_matrix, ic_df, method, trl, nmlz_days, sector_member)
+        table = table_return(return_matrix, ic_df, method, trl, nmlz_days, sector_member, factor_1_name, factor_2_name)
     return table, return_matrix
 
 
@@ -113,9 +114,9 @@ def timing(matrix, _start, _end):
     return _return_matrix
 
 
-def mkdir(parent_path, start_date, end_date, nmlz_days, trl, method):
+def mkdir(parent_path, start_date, end_date, nmlz_days, trl, method, factor_1_name, factor_2_name):
     dir = parent_path + '\\' + str(start_date.strftime("%Y-%m")) + '_' + str(
-        end_date.strftime("%Y-%m")) + '_' + factor_1 + '&&' + factor_2 + '-' + partition_loc + '_trl' + str(trl)
+        end_date.strftime("%Y-%m")) + '_' + factor_1_name + '&&' + factor_2_name + '-' + partition_loc + '_trl' + str(trl)
     # 判断父文件夹是否存在，并创建父文件夹
     if not os.path.exists(dir):
         os.makedirs(dir)
@@ -159,65 +160,69 @@ def get_sector_number_dummy_matrix(sector_member_name):
 
 def get_factor_matrix(factor_name):
     if factor_name == 'circ_mv':
-        return timing(get_circ_mv().shift(1), start_date, end_date).astype('float16', errors='ignore')
+        return timing(get_circ_mv().shift(1), start_date, end_date)
     elif factor_name == 'dv_ratio':
-        return timing(get_dv_ratio().shift(1), start_date, end_date).astype('float16', errors='ignore')
+        return timing(get_dv_ratio().shift(1), start_date, end_date)
+    elif factor_name == 'dv_ttm':
+        return timing(get_dv_ttm().shift(1), start_date, end_date)
     elif factor_name == 'float_share':
-        return timing(get_float_share().shift(1), start_date, end_date).astype('float16', errors='ignore')
+        return timing(get_float_share().shift(1), start_date, end_date)
     elif factor_name == 'free_share':
-        return timing(get_free_share().shift(1), start_date, end_date).astype('float16', errors='ignore')
+        return timing(get_free_share().shift(1), start_date, end_date)
     elif factor_name == 'pb':
-        return timing(get_pb().shift(1), start_date, end_date).astype('float16', errors='ignore')
+        return timing(get_pb().shift(1), start_date, end_date)
     elif factor_name == 'pe':
-        return timing(get_pe().shift(1), start_date, end_date).astype('float16', errors='ignore')
+        return timing(get_pe().shift(1), start_date, end_date)
     elif factor_name == 'pe_ttm':
-        return timing(get_pe_ttm().shift(1), start_date, end_date).astype('float16', errors='ignore')
+        return timing(get_pe_ttm().shift(1), start_date, end_date)
     elif factor_name == 'ps':
-        return timing(get_ps().shift(1), start_date, end_date).astype('float16', errors='ignore')
+        return timing(get_ps().shift(1), start_date, end_date)
     elif factor_name == 'ps_ttm':
-        return timing(get_ps_ttm().shift(1), start_date, end_date).astype('float16', errors='ignore')
+        return timing(get_ps_ttm().shift(1), start_date, end_date)
     elif factor_name == 'total_mv':
-        return timing(get_total_mv().shift(1), start_date, end_date).astype('float16', errors='ignore')
+        return timing(get_total_mv().shift(1), start_date, end_date)
     elif factor_name == 'total_share':
-        return timing(get_total_share().shift(1), start_date, end_date).astype('float16', errors='ignore')
+        return timing(get_total_share().shift(1), start_date, end_date)
     elif factor_name == 'turnover_rate':
-        return timing(get_turnover_rate().shift(1), start_date, end_date).astype('float16', errors='ignore')
+        return timing(get_turnover_rate().shift(1), start_date, end_date)
     elif factor_name == 'turnover_rate_f':
-        return timing(get_turnover_rate_f().shift(1), start_date, end_date).astype('float16', errors='ignore')
+        return timing(get_turnover_rate_f().shift(1), start_date, end_date)
     elif factor_name == 'volume_ratio':
-        return timing(get_volume_ratio().shift(1), start_date, end_date).astype('float16', errors='ignore')
+        return timing(get_volume_ratio().shift(1), start_date, end_date)
+    else:
+        print('获取的方法不存在')
 
 
 # 生成四个矩阵(dataframe)：收益率，是否为指定成分股的dummy，市值， 波动率
-def run_back_testing_new():
+def run_back_testing_new(factor_1_name, factor_2_name):
     try:
-        T_read1 = time.perf_counter()
+        # T_read1 = time.perf_counter()
 
         plot_dict_dict = {}
 
         # 获取数据矩阵，并降低精度
-        ret = timing(get_ret_matrix(), start_date, end_date).astype('float16', errors='ignore')
+        ret = timing(get_ret_matrix(), start_date, end_date).astype('float16')
         dummy = get_sector_number_dummy_matrix(sector_member)
         parent_path = set_sector_dir(sector_member)
 
         # 锁定时间区间
-        _factor_1 = get_factor_matrix(factor_1)
-        _factor_2 = get_factor_matrix(factor_2)
+        _factor_1_matrix = get_factor_matrix(factor_1_name).apply(np.log1p)
+        _factor_2_matrix = get_factor_matrix(factor_2_name).apply(np.log1p)
 
         # 用于装参数表格的list
         df_table_list = []
-        T_read2 = time.perf_counter()
-        print("读取数据用时：", T_read2 - T_read1)
+        # T_read2 = time.perf_counter()
+        # print("读取数据用时：", T_read2 - T_read1)
 
         # 计算新因子，并计算其他变量
         res_list = []
-        for res in compute(ret, dummy, _factor_1, _factor_2):  # 把compute的数据装载到list里，可以提前释放内存。
+        for res in compute(ret, dummy, _factor_1_matrix, _factor_2_matrix):  # 把compute的数据装载到list里，可以提前释放内存。
             # 计算持仓矩阵和最终的收益率
             portfolio, ret_total, ret_boxes_df, ret_top, ret_bot, method, _factor_2_new, dummy_new, ret_new, ret_portfolio, trl, nmlz_days = res
 
             # 创建一个文件夹，用于装不同方法的数据
             dir = mkdir(parent_path, start_date=start_date, end_date=end_date, nmlz_days=nmlz_days, trl=trl,
-                        method=method)
+                        method=method, factor_1_name= factor_1_name, factor_2_name= factor_2_name)
 
             # 计算IC值
             ic_df = calculate_ic(_factor_2_new, ret_new)
@@ -226,13 +231,13 @@ def run_back_testing_new():
             detail_tab, return_matrix = detail_table(total_return_matrix=ret_total, top_return_matrix=ret_top,
                                                      bottom_return_matrix=ret_bot,
                                                      portfolio_return_matrix=ret_portfolio, ic_df=ic_df, trl=trl,
-                                                     nmlz_days=nmlz_days,
+                                                     nmlz_days=nmlz_days, factor_1_name=factor_1_name, factor_2_name=factor_2_name,
                                                      method=method, sector_member=sector_member)
 
             # streamlit需要用的python变量打包
             plot_dict = {'return_matrix': return_matrix, 'ret_boxes_df': ret_boxes_df,
                          '_factor_2_new': _factor_2_new, 'dummy_new': dummy_new, 'ret_new': ret_new,
-                         'factor_name1': factor_1, 'factor_name2': factor_2}
+                         'factor_name1': factor_1_name, 'factor_name2': factor_2_name}
             plot_dict_dict[method] = plot_dict
 
             # pickle表格
@@ -249,3 +254,4 @@ def run_back_testing_new():
 
     except Exception as e:
         traceback.print_exc()
+        return None

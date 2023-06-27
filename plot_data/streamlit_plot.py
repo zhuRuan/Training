@@ -457,16 +457,16 @@ def calculate_monotonicity(_lag):
         factor_matrix = _factor_2_new[dummy_new].iloc[:-(_lag - 1), :]
     else:
         factor_matrix = _factor_2_new[dummy_new]
-    T21 = time.perf_counter()
+    # T21 = time.perf_counter()
     ret_matrix = (ret_new[dummy_new] + 1).rolling(_lag).apply(np.prod) - 1
     ret_boxes_matrix = (ret_boxes_df + 1).rolling(_lag).apply(np.prod) - 1
     cum_ret_boxes_matrix = annual_return(ret_boxes_matrix)
-    T22 = time.perf_counter()
-    print('矩阵计算用时：', T22 - T21)
+    # T22 = time.perf_counter()
+    # print('矩阵计算用时：', T22 - T21)
     _ic_df, _ic_cum, _mono_dist = monotonicity(factor=factor_matrix, ret=ret_matrix.iloc[(_lag - 1):, :],
                                                ret_df=cum_ret_boxes_matrix)
-    T23 = time.perf_counter()
-    print('单调性计算用时：', T23 - T22)
+    # T23 = time.perf_counter()
+    # print('单调性计算用时：', T23 - T22)
     # ic_cum_list.append(_ic_cum)
     # mono_dist_list.append(_mono_dist)
     # cum_ret_boxes_matrix_list.append(cum_ret_boxes_matrix)
