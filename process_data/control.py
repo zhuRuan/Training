@@ -44,7 +44,7 @@ def compute(ret_matrix: pd.DataFrame, dummy: pd.DataFrame, A_matrix: pd.DataFram
         return_rate_output_list.append((total_ret, ret_df, ret_top, ret_bot, ret_total_portfolio))
 
     for x, y in zip(portfolio_output_list, return_rate_output_list):
-        m_t_b, m_top, m_bot, boxes_list, method, new_factor_matrix_norm, dummy_new,ret_matrix_cut, trl, nmlz_days = x
+        m_t_b, m_top, m_bot, boxes_list, method, new_factor_matrix_norm, dummy_new, ret_matrix_cut, trl, nmlz_days = x
         total_ret, ret_df, ret_top, ret_bot, ret_total_portfolio = y
         return_list.append(
             (m_t_b, total_ret, ret_df, ret_top, ret_bot, method, new_factor_matrix_norm, dummy_new, ret_matrix_cut,

@@ -116,7 +116,7 @@ def group_rolling2_std_ratio_top(df, factor_1, factor_2, trl):
     _result_df_pos = factor_2.iloc[k - trl:k, :][_true_false_df]
     _result_df_neg = factor_2.iloc[k - trl:k, :][~_true_false_df]
     k = k + 1
-    return _result_df_pos.std(axis=0) / _result_df_neg.std(axis=0)
+    return (_result_df_pos.std(axis=0)+1e-8) / (_result_df_neg.std(axis=0)+1e-8)
 
 
 def group_rolling2_std_ratio_bottom(df, factor_1, factor_2, trl):
@@ -137,7 +137,7 @@ def group_rolling2_std_ratio_bottom(df, factor_1, factor_2, trl):
     _result_df_neg = factor_2.iloc[k - trl:k, :][~_true_false_df]
     k = k + 1
 
-    return _result_df_pos.std(axis=0) / _result_df_neg.std(axis=0)  # 求std的差
+    return (_result_df_pos.std(axis=0)+1e-8) / (_result_df_neg.std(axis=0)+1e-8)  # 求std的差
 
 
 def group_rolling2_std_top(df, factor_1, factor_2, trl):
@@ -156,7 +156,7 @@ def group_rolling2_std_top(df, factor_1, factor_2, trl):
     _true_false_df = rank_df <= top_ratio  # 截取市值较大的对应比例
     _result_df = factor_2.iloc[l - trl:l, :][_true_false_df]  # 获得符合要求的因子2，不符合的则为nan
     l = l + 1
-    return _result_df.std(axis=0)  # 求std，并返回
+    return _result_df.std(axis=0)+1e-8  # 求std，并返回
 
 
 def group_rolling2_std_bottom(df, factor_1, factor_2, trl):
@@ -175,7 +175,7 @@ def group_rolling2_std_bottom(df, factor_1, factor_2, trl):
     _true_false_df = rank_df >= 1 - top_ratio  # 截取市值较小的对应比例
     _result_df = factor_2.iloc[l - trl:l, :][_true_false_df]  # 获得符合要求的因子2，不符合的则为nan
     l = l + 1
-    return _result_df.std(axis=0)  # 求std，并返回
+    return _result_df.std(axis=0)+1e-8  # 求std，并返回
 
 
 def select_CAP_mean_diff(CAP_matrix: pd.DataFrame, true_false_matrix: pd.DataFrame, trl, method):

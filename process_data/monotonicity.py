@@ -17,7 +17,7 @@ def calculate_ic(factor: pd.DataFrame(), ret: pd.DataFrame()):
 
     a1 = (_factor.sub(_factor.mean(axis=1),axis=0))
     a2 = (_ret.sub(_ret.mean(axis=1),axis=0))
-    ic = (a1 * a2).mean(axis=1)/_factor.std(axis=1)/_ret.std(axis=1)
+    ic = (a1 * a2).mean(axis=1)/(_factor.std(axis=1)+ 1e-8)/(_ret.std(axis=1) + 1e-8)
 
     # 将ic从series变为dataframe
     ic_df = pd.DataFrame(ic)
@@ -42,3 +42,4 @@ def monotonicity(ret: pd.DataFrame, factor: pd.DataFrame, ret_df):
     ic_cum.columns = ['IC_CUM_CAP']
     _mono_dist = mono_dist(ret_df)
     return ic, ic_cum, _mono_dist
+

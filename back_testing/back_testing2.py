@@ -66,8 +66,12 @@ def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method, trl, 
     annual_ret_3, sharp_3, maximum_draw_3 = annual_revenue(
         return_matrix=return_matrix.iloc[2 * int(len(return_matrix) / 3):])
 
-    IC_mean = ic_df.mean(axis=0).round(3).iloc[0]
-    ICIR = np.round(IC_mean / ic_df.std(axis=0).iloc[0], 3)
+    # 计算IC和IC/IR
+    IC_mean = ic_df.mean(axis=0).iloc[0]
+    ICIR = np.round(IC_mean / (ic_df.std(axis=0).iloc[0]+1e-8), 4)
+    IC_mean = np.round(IC_mean, 4)
+
+    # 构造dataframe表格
     table = pd.DataFrame({'因子名称': [factor_1_name, factor_1_name, factor_1_name], '用作条件的因子': [factor_2_name, factor_2_name, factor_2_name],
                           '使用的参数': [method, method, method], '归属指数': [sector_member, sector_member, sector_member],
                           '科目类别': list(return_matrix.columns.to_list()[:3])})
@@ -90,6 +94,21 @@ def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method, trl, 
 
 def detail_table(total_return_matrix, top_return_matrix, bottom_return_matrix, portfolio_return_matrix, ic_df, trl,
                  nmlz_days, factor_1_name, factor_2_name, method='', sector_member=''):
+    '''
+    生成参数汇总表
+    :param total_return_matrix:
+    :param top_return_matrix:
+    :param bottom_return_matrix:
+    :param portfolio_return_matrix:
+    :param ic_df:
+    :param trl:
+    :param nmlz_days:
+    :param factor_1_name:
+    :param factor_2_name:
+    :param method:
+    :param sector_member:
+    :return:
+    '''
     return_matrix = pd.DataFrame(
         [total_return_matrix, top_return_matrix, bottom_return_matrix, portfolio_return_matrix]).T
     return_matrix.columns = ['LT_SB', "Long_top", "Long_bottom", "Portfolio"]
@@ -117,11 +136,11 @@ def timing(matrix, _start, _end):
 def mkdir(parent_path, start_date, end_date, nmlz_days, trl, method, factor_1_name, factor_2_name):
     dir = parent_path + '\\' + str(start_date.strftime("%Y-%m")) + '_' + str(
         end_date.strftime("%Y-%m")) + '_' + factor_1_name + '&&' + factor_2_name + '-' + partition_loc + '_trl' + str(trl)
-    # 判断父文件夹是否存在，并创建父文件夹
+    # 判断父文件夹（trl）是否存在，并创建父文件夹
     if not os.path.exists(dir):
         os.makedirs(dir)
     # 创建子文件夹
-    # 判断是否有重名的文件，有：则创造新的文件夹以呈放文件
+    # 判断是否有重名的文件，有：则创造新的nmlz文件夹以呈放文件
     i = 0
     son_dir = dir + '\\nmlz_days' + str(nmlz_days)
     while os.path.exists(son_dir + '\\table_' + method + '.csv'):
@@ -216,16 +235,17 @@ def run_back_testing_new(factor_1_name, factor_2_name):
 
         # 计算新因子，并计算其他变量
         res_list = []
+        save_dir = ''
         for res in compute(ret, dummy, _factor_1_matrix, _factor_2_matrix):  # 把compute的数据装载到list里，可以提前释放内存。
             # 计算持仓矩阵和最终的收益率
             portfolio, ret_total, ret_boxes_df, ret_top, ret_bot, method, _factor_2_new, dummy_new, ret_new, ret_portfolio, trl, nmlz_days = res
 
             # 创建一个文件夹，用于装不同方法的数据
-            dir = mkdir(parent_path, start_date=start_date, end_date=end_date, nmlz_days=nmlz_days, trl=trl,
+            save_dir = mkdir(parent_path, start_date=start_date, end_date=end_date, nmlz_days=nmlz_days, trl=trl,
                         method=method, factor_1_name= factor_1_name, factor_2_name= factor_2_name)
 
             # 计算IC值
-            ic_df = calculate_ic(_factor_2_new, ret_new)
+            ic_df = calculate_ic(_factor_2_new, ret_new.shift(1))
 
             # 参数汇总表
             detail_tab, return_matrix = detail_table(total_return_matrix=ret_total, top_return_matrix=ret_top,
@@ -241,14 +261,14 @@ def run_back_testing_new(factor_1_name, factor_2_name):
             plot_dict_dict[method] = plot_dict
 
             # pickle表格
-            pickle_path = dir + '\\table_' + method + str('.csv')
+            pickle_path = save_dir + '\\table_' + method + str('.csv')
             detail_tab.to_csv(pickle_path, index=False, encoding='gbk')
 
             df_table_list.append(detail_tab)
             # 循环结束
 
-        # pickle表格
-        with open(dir + '\\' + 'test.pkl', 'wb') as f:
+        # pickle Python变量，便于调取数据
+        with open(save_dir + '\\' + 'test.pkl', 'wb') as f:
             pickle.dump(plot_dict_dict, f, 0)
         return df_table_list
 
