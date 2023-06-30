@@ -2,6 +2,7 @@
 import time
 import warnings
 
+import pandas
 import pandas as pd
 from empyrical import max_drawdown, sharpe_ratio, cum_returns, annual_return
 from read_data.generate_random_data import *
@@ -18,6 +19,76 @@ import json
 import numpy as np
 import traceback
 import os
+
+pandas.set_option('display.max_rows', 200)
+pandas.set_option('display.max_columns', 30)
+
+
+def reduce_mem_usage(props):
+    start_mem_usg = props.memory_usage().sum() / 1024 ** 2
+    print("Memory usage of properties dataframe is :", start_mem_usg, " MB")
+    NAlist = []  # Keeps track of columns that have missing values filled in.
+    for col in props.columns:
+        if props[col].dtype != object:  # Exclude strings
+
+            # Print current column type
+            print("******************************")
+            print("Column: ", col)
+            print("dtype before: ", props[col].dtype)
+
+            # make variables for Int, max and min
+            IsInt = False
+            mx = props[col].max()
+            mn = props[col].min()
+
+            # Integer does not support NA, therefore, NA needs to be filled
+            if not np.isfinite(props[col]).all():
+                NAlist.append(col)
+                props[col].fillna(mn - 1, inplace=True)
+
+                # test if column can be converted to an integer
+            asint = props[col].fillna(0).astype(np.int64)
+            result = (props[col] - asint)
+            result = result.sum()
+            if result > -0.01 and result < 0.01:
+                IsInt = True
+
+            # Make Integer/unsigned Integer datatypes
+            if IsInt:
+                if mn >= 0:
+                    if mx < 255:
+                        props = props.astype(np.uint8, errors='ignore')
+                    elif mx < 65535:
+                        props = props.astype(np.uint16, errors='ignore')
+                    elif mx < 4294967295:
+                        props = props.astype(np.uint32, errors='ignore')
+                    else:
+                        props = props.astype(np.uint64, errors='ignore')
+                else:
+                    if mn > np.iinfo(np.int8).min and mx < np.iinfo(np.int8).max:
+                        props = props.astype(np.int8, errors='ignore')
+                    elif mn > np.iinfo(np.int16).min and mx < np.iinfo(np.int16).max:
+                        props = props.astype(np.int16, errors='ignore')
+                    elif mn > np.iinfo(np.int32).min and mx < np.iinfo(np.int32).max:
+                        props = props.astype(np.int32, errors='ignore')
+                    elif mn > np.iinfo(np.int64).min and mx < np.iinfo(np.int64).max:
+                        props = props.astype(np.int64, errors='ignore')
+
+                        # Make float datatypes 32 bit
+            else:
+                props = props.astype(np.float32)
+
+            # Print new column type
+            print("dtype after: ", props[col].dtype)
+            print("******************************")
+            break
+
+    # Print final result
+    print("___MEMORY USAGE AFTER COMPLETION:___")
+    mem_usg = props.memory_usage().sum() / 1024 ** 2
+    print("Memory usage is: ", mem_usg, " MB")
+    print("This is ", 100 * mem_usg / start_mem_usg, "% of the initial size")
+    return props, NAlist
 
 
 def annual_revenue_total(return_matrix: pd.DataFrame):
@@ -79,8 +150,8 @@ def table_return(return_matrix: pd.DataFrame, ic_df: pd.DataFrame, method, trl, 
     table['partion_loc'] = partition_loc
     table['start_day'] = start_day
     table['end_day'] = end_day
-    table['nmlz_days'] = nmlz_days
     table['trl_day'] = trl
+    table['nmlz_days'] = nmlz_days
 
     table2 = pd.concat(
         [table, pd.DataFrame({'年化收益率 （全时期）': annual_ret, '超额收益（全时期）：': excess_return, '夏普比率 （全时期）': sharp,
@@ -237,7 +308,7 @@ def get_factor_matrix(factor_name):
 def multi_process_data_analysis(_input):
     res, factor_1_name, factor_2_name, dir2 = _input
     # 计算持仓矩阵和最终的收益率
-    portfolio, ret_total, ret_boxes_df, ret_top, ret_bot, method, _factor_2_new, dummy_new, ret_new, ret_portfolio, trl_days, nmlz_days, partition_loc = res
+    ret_total, ret_boxes_df, ret_top, ret_bot, method, _factor_2_new, ret_new, ret_portfolio, trl_days, nmlz_days, partition_loc = res
 
     # 创建一个文件夹，用于装不同方法的数据
     save_dir_path = mk_all_dir(dir2, nmlz_days=nmlz_days, trl=trl_days, method=method, partition_loc=partition_loc)
@@ -255,19 +326,17 @@ def multi_process_data_analysis(_input):
 
     # streamlit需要用的python变量打包
     plot_dict = {'method': method, 'trl_days': trl_days, 'nmlz_days': nmlz_days, 'return_matrix': return_matrix,
-                 'ret_boxes_df': ret_boxes_df, '_factor_2_new': _factor_2_new, 'dummy_new': dummy_new,
-                 'ret_new': ret_new, 'factor_name1': factor_1_name, 'factor_name2': factor_2_name, }
+                 'ret_boxes_df': ret_boxes_df, '_factor_2_new': _factor_2_new, 'ret_new': ret_new,
+                 'factor_name1': factor_1_name, 'factor_name2': factor_2_name, }
 
     return detail_tab, plot_dict, save_dir_path, method, trl_days, nmlz_days, partition_loc
     # 循环结束
 
 
 # 生成四个矩阵(dataframe)：收益率，是否为指定成分股的dummy，市值， 波动率
-def run_back_testing_new(factor_1_name, factor_2_name):
+def run_back_testing_new(factor_1_name, factor_2_name, calc_method, nmlz_days):
     try:
         # T_read1 = time.perf_counter()
-
-        plot_dict_dict = {}
 
         # 获取数据矩阵，并降低精度
         ret = timing(get_ret_matrix(), start_date, end_date).astype('float16')
@@ -275,9 +344,10 @@ def run_back_testing_new(factor_1_name, factor_2_name):
         parent_path = set_sector_dir(sector_member)
 
         # 锁定时间区间
-        _factor_1_matrix = get_factor_matrix(factor_1_name).apply(np.log1p)
-        _factor_2_matrix = get_factor_matrix(factor_2_name).apply(np.log1p)
-
+        _factor_1_matrix = timing(get_factor_matrix(factor_1_name), start_date, end_date).apply(np.log1p).astype(
+            'float16')
+        _factor_2_matrix = timing(get_factor_matrix(factor_2_name), start_date, end_date).apply(np.log1p).astype(
+            'float16')
         # 用于装参数表格的list
         df_table_list = []
         # T_read2 = time.perf_counter()
@@ -286,41 +356,30 @@ def run_back_testing_new(factor_1_name, factor_2_name):
         dir2 = set_factor_dir(parent_path, start_date, end_date, factor_1_name, factor_2_name)
         # 计算新因子，把compute的数据装载到list里，可以提前释放内存。
         new_res_list = []
-        for return_items in compute(ret, dummy, _factor_1_matrix, _factor_2_matrix):
-            portfolio, ret_total, ret_boxes_df, ret_top, ret_bot, method, _factor_2_new, dummy_new, ret_new, ret_portfolio, trl, nmlz_days, partition_loc = return_items
-            new_res_list.append(((
-                                 portfolio, ret_total, ret_boxes_df, ret_top, ret_bot, method, _factor_2_new, dummy_new,
-                                 ret_new, ret_portfolio, trl, nmlz_days, partition_loc), factor_1_name, factor_2_name,
-                                 dir2))
+        for return_items in compute(ret, dummy, _factor_1_matrix, _factor_2_matrix, calc_method, nmlz_days):
+            ret_total, ret_boxes_df, ret_top, ret_bot, method, _factor_2_new, ret_new, ret_portfolio, trl, nmlz_days, partition_loc = return_items
+            new_res_list.append((( ret_total, ret_boxes_df, ret_top, ret_bot, method, _factor_2_new, ret_new,
+                                  ret_portfolio, trl, nmlz_days, partition_loc), factor_1_name, factor_2_name, dir2))
 
         # 多进程运算，得到所需变量
         with ProcessPoolExecutor(max_workers=cpu_number) as executor:
             return_list = executor.map(multi_process_data_analysis, new_res_list)
+
         # 将变量打包
         for _a in return_list:
             detail_tab, plot_dict, save_dir_path, method, trl_days, nmlz_days, partition_loc = _a
-            # 判断目标是否已经在字典中存在，若无，则添加
-            if not (partition_loc + str(trl_days) + str(nmlz_days)) in plot_dict_dict.keys():
-                plot_dict_dict[partition_loc + '_trl_days_' + str(trl_days) + '_nmlz_days_' + str(nmlz_days)] = {}
-            plot_dict_dict[partition_loc + str(trl_days) + str(nmlz_days)][method] = plot_dict
 
             # pickle表格
             pickle_path = save_dir_path + '\\table_' + method + str('.csv')
             detail_tab.to_csv(pickle_path, index=False, encoding='gbk')
-
             df_table_list.append(detail_tab)
-        # pickle Python变量，便于调取数据
-        python_variable_path = dir2 + '\\' + 'python_variable.pkl'
-        if os.path.exists(python_variable_path):  # 若已存在一个pickle文件，则读取并更新
-            old_plot_dict_dict = []
-            with open(python_variable_path, 'rb') as f:  # 读取已有字典
-                old_plot_dict_dict = pickle.load(f)
-                old_plot_dict_dict.update(plot_dict_dict)
-            with open(python_variable_path, 'wb') as f2:
-                pickle.dump(old_plot_dict_dict, f2, 0)  # 存储更新后的字典
-        else:
-            with open(python_variable_path, 'wb') as f:
-                pickle.dump(plot_dict_dict, f, 0)  # 存储一个字典
+
+            # pickle Python变量，便于调取数据
+            if (detail_tab['年化收益率 （全时期）'].str.strip('%').astype(float) / 100 > 0.2).any():
+                python_variable_path = save_dir_path + '\\' + method + '.pkl'
+                # 存储一个字典
+                with open(python_variable_path, 'wb') as f:
+                    pickle.dump(plot_dict, f, 0)
         return df_table_list
 
     except Exception as e:

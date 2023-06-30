@@ -62,8 +62,8 @@ def get_return_rate(input_list_for_return_rate):
     input_list = []
     # 准备多线程的输入
     for output in input_list_for_return_rate:
-        m3, m_top, m_bot, boxes_list, method, new_factor_matrix_norm, dummy_new, ret_matrix_cut, trl, nmlz_days,partition_loc = output
-        input_list.append((ret_matrix_cut, m_top, m_bot, boxes_list, dummy_new))
+        m_top, m_bot, boxes_list, method, new_factor_matrix_norm, ret_matrix_cut, trl, nmlz_days,partition_loc = output
+        input_list.append((ret_matrix_cut, m_top, m_bot, boxes_list))
     with ProcessPoolExecutor(max_workers=cpu_number) as executor:
         return executor.map(compute_return_rate, input_list)
     # m3, m_top, m_bot, boxes_list = computing2(ret_matrix, dummy, CAP, VOL, lamda, boxes, trl, output_list)
@@ -78,7 +78,7 @@ def compute_return_rate(_x):
     CAP：市值矩阵
     lamda：做多和做空比率
     '''
-    ret_matrix_cut, m_top, m_bot, boxes_list, dummy_new = _x
+    ret_matrix_cut, m_top, m_bot, boxes_list = _x
     # m3, m_top, m_bot, boxes_list = computing_2(CAP, VOL, dummy, lamda, boxes, trl)  # 得到 True False 持仓矩阵
 
     # 计算不同boxes的收益率
@@ -98,7 +98,7 @@ def compute_return_rate(_x):
     ret_bot = computing_profolio_return_rate(m_bot, ret_matrix_cut)
 
     # 计算组合算术平均收益率
-    ret_total_portfolio = ret_matrix_cut[dummy_new].mean(axis=1)
+    ret_total_portfolio = ret_matrix_cut.mean(axis=1)
 
     # 计算收益率，买TOP，卖空BOTTOM
     total_ret = ret_top - ret_bot

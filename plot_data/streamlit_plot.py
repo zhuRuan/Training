@@ -44,7 +44,7 @@ def space(num_lines=1):  # 空格
         st.write("")
 
 
-space(5)
+space(2)
 
 
 # MAD:中位数去极值
@@ -500,7 +500,7 @@ def choose_dir(path, tips):
     '''
     dir_list = os.listdir(path)
     for dir in dir_list:
-        if dir.endswith('.csv') or dir.endswith('.pickle'):
+        if dir.endswith('.csv'):
             dir_list.remove(dir)
     dir = st.selectbox(tips, dir_list)
     return dir, path + '\\' + dir
@@ -514,20 +514,17 @@ factor, factor_dir_path = choose_dir(path=time_period_dir_path, tips='测试因�
 partition_loc, partition_loc_dir_path = choose_dir(path=factor_dir_path, tips='因子高值低值选择：')
 trl_days, trl_days_dir_path = choose_dir(path=partition_loc_dir_path, tips='回溯天数选择：')
 nmlz_days, nmlz_days_dir_path = choose_dir(path=trl_days_dir_path, tips='归一化天数选择')
-key_list = []
-with open(factor_dir_path + '\\' + 'python_variable.pkl', 'rb') as f:
-    data = pickle.load(f)
-    # 选择需要的方法
-    for key in data[partition_loc + str(trl_days) + str(nmlz_days)].keys():
-        key_list.append(key)
-method = st.selectbox("您想要观察的因子2【即条件因子】回测的方法是？", key_list)
-return_matrix = data[partition_loc + str(trl_days) + str(nmlz_days)][method]['return_matrix']
-ret_boxes_df = data[partition_loc + str(trl_days) + str(nmlz_days)][method]['ret_boxes_df']
-_factor_2_new = data[partition_loc + str(trl_days) + str(nmlz_days)][method]['_factor_2_new']
-dummy_new = data[partition_loc + str(trl_days) + str(nmlz_days)][method]['dummy_new']
-ret_new = data[partition_loc + str(trl_days) + str(nmlz_days)][method]['ret_new']
-factor_name1 = data[partition_loc + str(trl_days) + str(nmlz_days)][method]['factor_name1']
-factor_name2 = data[partition_loc + str(trl_days) + str(nmlz_days)][method]['factor_name2']
+method, pickle_dir_path = choose_dir(path=nmlz_days_dir_path, tips='您想要观察的因子2【即条件因子】回测的方法是？')
+with open(pickle_dir_path, 'rb') as f:
+    df = pickle.load(f)
+
+return_matrix = df['return_matrix']
+ret_boxes_df = df['ret_boxes_df']
+_factor_2_new = df['_factor_2_new']
+dummy_new = df['dummy_new']
+ret_new = df['ret_new']
+factor_name1 = df['factor_name1']
+factor_name2 = df['factor_name2']
 ic_df = calculate_ic(_factor_2_new, ret_new)
 plot_return(return_matrix=return_matrix, ic_df=ic_df,
             method=method, factor_name1=factor_name1, factor_name2=factor_name2)

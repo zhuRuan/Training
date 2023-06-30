@@ -2,8 +2,12 @@ import time
 
 import pandas as pd
 import numpy as np
-from constant import calc_method, trl_tuple, nmlz_days_tuple, top_ratio, partition_loc_tuple, lambda_ratio, boxes_numbers, cpu_number
-from concurrent.futures import ProcessPoolExecutor
+from constant import trl_tuple, top_ratio, partition_loc_tuple, lambda_ratio, \
+    boxes_numbers, cpu_number
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+
+pd.set_option('display.max_rows', 200)
+pd.set_option('display.max_columns', 30)
 
 h = 0
 j = 0
@@ -116,7 +120,7 @@ def group_rolling2_std_ratio_top(df, factor_1, factor_2, trl):
     _result_df_pos = factor_2.iloc[k - trl:k, :][_true_false_df]
     _result_df_neg = factor_2.iloc[k - trl:k, :][~_true_false_df]
     k = k + 1
-    return (_result_df_pos.std(axis=0)+1e-8) / (_result_df_neg.std(axis=0)+1e-8)
+    return (_result_df_pos.std(axis=0) + 1e-8) / (_result_df_neg.std(axis=0) + 1e-8)
 
 
 def group_rolling2_std_ratio_bottom(df, factor_1, factor_2, trl):
@@ -137,7 +141,7 @@ def group_rolling2_std_ratio_bottom(df, factor_1, factor_2, trl):
     _result_df_neg = factor_2.iloc[k - trl:k, :][~_true_false_df]
     k = k + 1
 
-    return (_result_df_pos.std(axis=0)+1e-8) / (_result_df_neg.std(axis=0)+1e-8)  # 求std的差
+    return (_result_df_pos.std(axis=0) + 1e-8) / (_result_df_neg.std(axis=0) + 1e-8)  # 求std的差
 
 
 def group_rolling2_std_top(df, factor_1, factor_2, trl):
@@ -156,7 +160,7 @@ def group_rolling2_std_top(df, factor_1, factor_2, trl):
     _true_false_df = rank_df <= top_ratio  # 截取市值较大的对应比例
     _result_df = factor_2.iloc[l - trl:l, :][_true_false_df]  # 获得符合要求的因子2，不符合的则为nan
     l = l + 1
-    return _result_df.std(axis=0)+1e-8  # 求std，并返回
+    return _result_df.std(axis=0) + 1e-8  # 求std，并返回
 
 
 def group_rolling2_std_bottom(df, factor_1, factor_2, trl):
@@ -175,7 +179,7 @@ def group_rolling2_std_bottom(df, factor_1, factor_2, trl):
     _true_false_df = rank_df >= 1 - top_ratio  # 截取市值较小的对应比例
     _result_df = factor_2.iloc[l - trl:l, :][_true_false_df]  # 获得符合要求的因子2，不符合的则为nan
     l = l + 1
-    return _result_df.std(axis=0)+1e-8  # 求std，并返回
+    return _result_df.std(axis=0) + 1e-8  # 求std，并返回
 
 
 def select_CAP_mean_diff(CAP_matrix: pd.DataFrame, true_false_matrix: pd.DataFrame, trl, method):
@@ -280,7 +284,7 @@ def normalization(matrix: pd.DataFrame, nmlz_day: int):
                                                                                   :]  # 对因子矩阵进行归一化
 
 
-def multi_process_new_factor(A_matrix: pd.DataFrame, B_matrix: pd.DataFrame):
+def multi_process_new_factor(A_matrix: pd.DataFrame, B_matrix: pd.DataFrame, calc_method: str):
     '''
     获取新的因子矩阵
     :param A_matrix: 用于确定回测期限内哪些日期合适的矩阵A
@@ -295,11 +299,10 @@ def multi_process_new_factor(A_matrix: pd.DataFrame, B_matrix: pd.DataFrame):
     # 多线程计算新的因子矩阵
     # 构建calculate_new_factor的输入参数
     input_list = []
-    for method in calc_method:
+    for partition_loc in partition_loc_tuple:
         for trl in trl_tuple:
-            for partition_loc in partition_loc_tuple:
-                input_list.append(
-                    (A_matrix, B_matrix, trl, method, partition_loc))  # 为calculate_new_factor方法准备输入参数,分别为A矩阵，B矩阵，回溯日期，方法名称
+                input_list.append((A_matrix, B_matrix, trl, calc_method,
+                     partition_loc))  # 为calculate_new_factor方法准备输入参数,分别为A矩阵，B矩阵，回溯日期，方法名称
     # 多线程获取因子数据
     with ProcessPoolExecutor(max_workers=cpu_number) as executor:
         return executor.map(calculate_new_factor, input_list)  # 按回溯期内VOL最小的lambda天对应的CAP，求均值
@@ -312,12 +315,11 @@ def computing_portfolio_matrix(_x):
     :return:
     '''
     # 计算排序矩阵
-    new_factor_matrix, dummy, method, nmlz_days, trl, partition_loc = _x  # 赋值
+    new_factor_matrix, method, nmlz_days, trl, partition_loc = _x  # 赋值
     new_factor_matrix_norm = normalization(new_factor_matrix, nmlz_day=nmlz_days)  # 归一化，Z-score标准化方法,会损失一部分数据
-    new_factor_matrix_norm_dummy = new_factor_matrix_norm[dummy]  # 按照dummy矩阵判断是否是指定的成分股
-    rank_matrix = new_factor_matrix_norm_dummy.rank(axis=1, method='dense', ascending=True, na_option='keep',
+    rank_matrix = new_factor_matrix_norm.rank(axis=1, method='dense', ascending=True, na_option='keep',
                                                     pct=True)  # 对当天所有的在交易范围内且可以交易的股票进行排序，升序
-
+    # print(new_factor_matrix_norm_dummy.mean(axis=1))
     # 生成M3：对排位进行boxes划分，即计算出不同boxes的持仓矩阵并存在列表中
     m_boxes_list = []
     for i in range(0, boxes_numbers):
@@ -328,30 +330,29 @@ def computing_portfolio_matrix(_x):
     m_bot = rank_matrix <= lambda_ratio  # 因子尾部矩阵
     m_t_B = m_top + m_bot  # 头部与尾部矩阵
 
-    return m_t_B, m_top, m_bot, m_boxes_list, method, new_factor_matrix_norm, dummy, trl, nmlz_days, partition_loc
+    return m_t_B, m_top, m_bot, m_boxes_list, method, new_factor_matrix_norm, trl, nmlz_days, partition_loc
 
 
-def multi_process_portfolio(input_list_for_portfolio, dummy: pd.DataFrame):
+def multi_process_portfolio(input_list_for_portfolio, dummy: pd.DataFrame, nmlz_days):
     # 多线程计算最终的持仓矩阵
     # 构建computing_portfolio_matrix的输入参数
     input_list2 = []
-     # 新的dummy矩阵，index要完全匹配
+    # 新的dummy矩阵，index要完全匹配
     for res in input_list_for_portfolio:
         _new_facotr_matrix, method, trl, partition_loc = res
-        for nmlz_days in nmlz_days_tuple:
-            dummy_new = dummy.iloc[trl + nmlz_days - 2:, :]
-            input_list2.append((_new_facotr_matrix, dummy_new, method, nmlz_days, trl, partition_loc))
+        input_list2.append((_new_facotr_matrix, method, nmlz_days, trl, partition_loc))
     # 多线程获取持仓矩阵
     with ProcessPoolExecutor(max_workers=cpu_number) as executor:
         computing_portfolio_matrix_return_list = executor.map(computing_portfolio_matrix, input_list2)  # 返回了持仓矩阵到上级方法
     _return_list = []
     for item in computing_portfolio_matrix_return_list:
-        m_t_B, m_top, m_bot, m_boxes_list, method, new_factor_matrix_norm, dummy, trl, nmlz_days, partition_loc = item
-        _return_list.append((m_t_B, m_top, m_bot, m_boxes_list, method, new_factor_matrix_norm, dummy, trl, nmlz_days, partition_loc))
+        m_t_B, m_top, m_bot, m_boxes_list, method, new_factor_matrix_norm, trl, nmlz_days, partition_loc = item
+        _return_list.append(
+            (m_t_B, m_top, m_bot, m_boxes_list, method, new_factor_matrix_norm, trl, nmlz_days, partition_loc))
     return _return_list
 
 
-def get_portfolio(A_matrix, B_matrix, dummy):
+def get_portfolio(A_matrix, B_matrix, dummy, calc_method, nmlz_days):
     '''
     先计算新因子矩阵，计算投资组合对应的truefalse矩阵
     :param A_matrix: 因子A
@@ -361,9 +362,10 @@ def get_portfolio(A_matrix, B_matrix, dummy):
     '''
     # 先计算新因子
     # t_cal1 = time.perf_counter()
-    _output_list_factor = multi_process_new_factor(A_matrix=A_matrix, B_matrix=B_matrix)
+    _output_list_factor = multi_process_new_factor(A_matrix=A_matrix[dummy], B_matrix=B_matrix[dummy],
+                                                   calc_method=calc_method)
     # t_cal2 = time.perf_counter()
     # print('因子计算用时(包含在生成持仓矩阵内)：', t_cal2 - t_cal1)
 
     # 再计算持仓矩阵
-    return multi_process_portfolio(input_list_for_portfolio=_output_list_factor, dummy=dummy)
+    return multi_process_portfolio(input_list_for_portfolio=_output_list_factor, dummy=dummy, nmlz_days= nmlz_days)

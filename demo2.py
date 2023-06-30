@@ -6,8 +6,11 @@ import traceback
 import numpy as np
 import pandas as pd
 from back_testing.back_testing2 import run_back_testing_new
-from constant import  factor_1_name_list, factor_2_name_list, save_path
+from constant import factor_1_name_list, factor_2_name_list, save_path, calc_method_tuple, nmlz_days_tuple
 from tqdm import tqdm
+
+pd.set_option('display.max_rows', 50)
+pd.set_option('expand_frame_repr', False)
 
 
 def save_csv(df):
@@ -21,7 +24,7 @@ def save_csv(df):
 
 # 按间距中的绿色按钮以运行脚本。
 if __name__ == '__main__':
-    wrong_list = [] # 错误列表
+    wrong_list = []  # 错误列表
 
     # 读取sum.csv列表
     if os.path.exists(save_path + '\\sum.csv'):
@@ -35,8 +38,9 @@ if __name__ == '__main__':
             if not os.path.exists(save_path + '\\sum.csv') or (
                     (factor_1, factor_2) not in zip(sum_csv['因子名称'].values.tolist(),
                                                     sum_csv['用作条件的因子'].values.tolist())):
-                factor_pair_list.append((factor_1, factor_2))
-
+                for calc_method in calc_method_tuple:
+                    for nmlz_days in nmlz_days_tuple:
+                        factor_pair_list.append((factor_1, factor_2, calc_method, nmlz_days))
     # 开始带进度条的因子回测
     with tqdm(total=len(factor_pair_list)) as pbar:
         # 设置回测进度条的前缀说明
@@ -45,14 +49,17 @@ if __name__ == '__main__':
             # 读取列表中的因子
             factor_1 = pair[0]
             factor_2 = pair[1]
-            pbar.set_postfix({'factor_1': factor_1, 'factor_2': factor_2})
-            back_testing_return = run_back_testing_new(factor_1, factor_2)
+            calc_method = pair[2]
+            nmlz_days = pair[3]
+            pbar.set_postfix({'factor_1': factor_1, 'factor_2': factor_2, 'calc_method': calc_method,
+                              'nmlz_days': nmlz_days})
+            back_testing_return = run_back_testing_new(factor_1, factor_2, calc_method, nmlz_days)
 
             # 判断返回的值，并处理文件
-            if back_testing_return != None: # 若符合条件，则保存csv
+            if back_testing_return != None:  # 若符合条件，则保存csv
                 df = pd.concat(back_testing_return, axis=0)
                 save_csv(df)
-            else: # 不符合条件，则将出错的因子组合添加进错误列表，并打印错误列表
+            else:  # 不符合条件，则将出错的因子组合添加进错误列表，并打印错误列表
                 wrong_list.append((factor_1, factor_2))
                 print(wrong_list)
 
