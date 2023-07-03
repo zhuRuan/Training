@@ -34,12 +34,15 @@ if __name__ == '__main__':
     # 添加要回测的因子
     for factor_1 in (factor_1_name_list):
         for factor_2 in factor_2_name_list:
-            # 判断csv文件是否存在，不存在，直接添加所有的因子组合，若存在则判断是否已经在csv列表内。
-            if not os.path.exists(save_path + '\\sum.csv') or (
-                    (factor_1, factor_2) not in zip(sum_csv['因子名称'].values.tolist(),
-                                                    sum_csv['用作条件的因子'].values.tolist())):
-                for calc_method in calc_method_tuple:
-                    for nmlz_days in nmlz_days_tuple:
+            for calc_method in calc_method_tuple:
+                for nmlz_days in nmlz_days_tuple:
+                    # 判断csv文件是否存在，不存在，直接添加所有的因子组合，若存在则判断是否已经在csv列表内。
+                    if not os.path.exists(save_path + '\\sum.csv') or (
+                            (factor_1, factor_2, calc_method, nmlz_days) not in zip(sum_csv['因子名称'].values.tolist(),
+                                                                                    sum_csv['用作条件的因子'].values.tolist(),
+                                                                                    sum_csv['使用的参数'].values.tolist(),
+                                                                                    sum_csv['nmlz_days'].values.tolist()
+                                                                                    )):
                         factor_pair_list.append((factor_1, factor_2, calc_method, nmlz_days))
     # 开始带进度条的因子回测
     with tqdm(total=len(factor_pair_list)) as pbar:
