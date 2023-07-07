@@ -44,6 +44,7 @@ if __name__ == '__main__':
                                                                                     sum_csv['nmlz_days'].values.tolist()
                                                                                     )):
                         factor_pair_list.append((factor_1, factor_2, calc_method, nmlz_days))
+
     # 开始带进度条的因子回测
     with tqdm(total=len(factor_pair_list)) as pbar:
         # 设置回测进度条的前缀说明

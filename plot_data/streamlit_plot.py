@@ -70,17 +70,16 @@ def exposure(CAP: pd.DataFrame):
     factor取极值之后的分布
     '''
     # 有效数值
-    valid_number = CAP.count(axis=1).rename('valid_number_CAP').to_frame().copy(deep=True).reset_index()
+    valid_number = CAP.count(axis=1).rename('valid_number_factor').to_frame().copy(deep=True).reset_index()
 
     # 直方图
-    t_dist1 = time.perf_counter()
     rate = 10  # 采样速率
     dist = pd.DataFrame(CAP.to_numpy().flatten())  # 恒定速率采样后，降维至一维数组
     dist.columns = ['CAP']
     dist2 = dist.copy(deep=True)
+    dist2.replace(np.inf, np.nan, inplace=True)
     dist2.dropna(inplace=True, axis=0, how='any')
     dist2.reset_index(drop=True, inplace=True)
-    t_dist2 = time.perf_counter()
 
     # # 去极值后的直方图
     # mad_winsorize = filter_extreme_MAD(dist, 3)
@@ -321,7 +320,7 @@ def plot_exposure(valid_number_matrix, dist_matrix: pd.DataFrame):
         st.header("因子暴露")
         col1, col2 = st.columns(2)
         with col1:
-            fig = px.bar(data_frame=valid_number_matrix, x='index', y='valid_number_CAP')
+            fig = px.bar(data_frame=valid_number_matrix, x='index', y='valid_number_factor')
             fig.update_layout(
                 title='因子有效个数',  # 整个图的标题
                 title_font_size=25,
@@ -456,11 +455,11 @@ def plot_monotonicity(mono_dist, ic_df, ic_cum_list):
 
 def calculate_monotonicity(_lag):
     if _lag != 1:
-        factor_matrix = _factor_2_new[dummy_new].iloc[:-(_lag - 1), :]
+        factor_matrix = _factor_2_new.iloc[:-(_lag - 1), :]
     else:
-        factor_matrix = _factor_2_new[dummy_new]
+        factor_matrix = _factor_2_new
     # T21 = time.perf_counter()
-    ret_matrix = (ret_new[dummy_new] + 1).rolling(_lag).apply(np.prod) - 1
+    ret_matrix = (ret_new + 1).rolling(_lag).apply(np.prod) - 1
     ret_boxes_matrix = (ret_boxes_df + 1).rolling(_lag).apply(np.prod) - 1
     cum_ret_boxes_matrix = annual_return(ret_boxes_matrix)
     # T22 = time.perf_counter()
@@ -499,10 +498,13 @@ def choose_dir(path, tips):
     :return: 返回子文件夹的名称，及子文件夹路径
     '''
     dir_list = os.listdir(path)
+    dir_list_qualified = []
     for dir in dir_list:
-        if dir.endswith('.csv'):
-            dir_list.remove(dir)
-    dir = st.selectbox(tips, dir_list)
+        if not dir.endswith('.csv'):
+            dir_list_qualified.append(dir)
+    dir = st.selectbox(tips, dir_list_qualified)
+    if dir == None:
+        return None, None
     return dir, path + '\\' + dir
 
 
@@ -515,42 +517,42 @@ partition_loc, partition_loc_dir_path = choose_dir(path=factor_dir_path, tips='�
 trl_days, trl_days_dir_path = choose_dir(path=partition_loc_dir_path, tips='回溯天数选择：')
 nmlz_days, nmlz_days_dir_path = choose_dir(path=trl_days_dir_path, tips='归一化天数选择')
 method, pickle_dir_path = choose_dir(path=nmlz_days_dir_path, tips='您想要观察的因子2【即条件因子】回测的方法是？')
-with open(pickle_dir_path, 'rb') as f:
-    df = pickle.load(f)
+if method != None:
+    with open(pickle_dir_path, 'rb') as f:
+        df = pickle.load(f)
 
-return_matrix = df['return_matrix']
-ret_boxes_df = df['ret_boxes_df']
-_factor_2_new = df['_factor_2_new']
-dummy_new = df['dummy_new']
-ret_new = df['ret_new']
-factor_name1 = df['factor_name1']
-factor_name2 = df['factor_name2']
-ic_df = calculate_ic(_factor_2_new, ret_new)
-plot_return(return_matrix=return_matrix, ic_df=ic_df,
-            method=method, factor_name1=factor_name1, factor_name2=factor_name2)
+    return_matrix = df['return_matrix']
+    ret_boxes_df = df['ret_boxes_df']
+    _factor_2_new = df['_factor_2_new']
+    ret_new = df['ret_new']
+    factor_name1 = df['factor_name1']
+    factor_name2 = df['factor_name2']
+    ic_df = calculate_ic(_factor_2_new, ret_new)
+    plot_return(return_matrix=return_matrix, ic_df=ic_df,
+                method=method, factor_name1=factor_name1, factor_name2=factor_name2)
 
-# 单调性
-lag_list = [1, 5, 20]
-ic = 0
-ic_cum_list = []
-mono_dist_list = []
-cum_ret_boxes_matrix_list = []
+    # 单调性
+    lag_list = [1, 5, 20]
+    ic = 0
+    ic_cum_list = []
+    mono_dist_list = []
+    cum_ret_boxes_matrix_list = []
 
-# 去除dist的空值
-# 计算因子暴露
-with st.spinner('请等待...'):
-    valid_number_matrix, dist_matrix = exposure(_factor_2_new)
+    # 去除dist的空值
+    # 计算因子暴露
+    with st.spinner('请等待...'):
+        valid_number_matrix, dist_matrix = exposure(_factor_2_new)
 
-# 因子暴露展示
-plot_exposure(valid_number_matrix=valid_number_matrix, dist_matrix=dist_matrix)
+    # 因子暴露展示
+    plot_exposure(valid_number_matrix=valid_number_matrix, dist_matrix=dist_matrix)
 
-# 单调性展示
-# 按照滞后期数的循环
-T3 = time.perf_counter()
-st.header('单调性')
-plot_boxes_return(ret_boxes_df)
-# mono_dist_list, ic_cum_list = multi_process_cal_mono(lag_list)
-# my_bar = st.empty()
-# T4 = time.perf_counter()
-# print('单调性运算用时：', T4 - T3)
-# plot_monotonicity(mono_dist=mono_dist_list, ic_df=ic_df, ic_cum_list=ic_cum_list)
+    # 单调性展示
+    # 按照滞后期数的循环
+    T3 = time.perf_counter()
+    st.header('单调性')
+    plot_boxes_return(ret_boxes_df)
+    # mono_dist_list, ic_cum_list = multi_process_cal_mono(lag_list)
+    # my_bar = st.empty()
+    # T4 = time.perf_counter()
+    # print('单调性运算用时：', T4 - T3)
+    # plot_monotonicity(mono_dist=mono_dist_list, ic_df=ic_df, ic_cum_list=ic_cum_list)

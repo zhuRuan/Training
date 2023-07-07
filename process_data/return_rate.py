@@ -7,8 +7,7 @@ def computing_profolio_return_rate(m3: pd.DataFrame, ret: pd.DataFrame):
     '''
     根据True-False矩阵计算组合收益率
     '''
-    _true_false = m3
-    result = ret[_true_false]  # 收益率乘以m3
+    result = ret[m3]  # 收益率乘以m3
     mean_ret = result.mean(axis=1)
     return mean_ret
 
@@ -62,10 +61,11 @@ def get_return_rate(input_list_for_return_rate):
     input_list = []
     # 准备多线程的输入
     for output in input_list_for_return_rate:
-        m_top, m_bot, boxes_list, method, new_factor_matrix_norm, ret_matrix_cut, trl, nmlz_days,partition_loc = output
+        m_top, m_bot, boxes_list, method, new_factor_matrix_norm, ret_matrix_cut, trl, nmlz_days, partition_loc = output
         input_list.append((ret_matrix_cut, m_top, m_bot, boxes_list))
     with ProcessPoolExecutor(max_workers=cpu_number) as executor:
-        return executor.map(compute_return_rate, input_list)
+         res = executor.map(compute_return_rate, input_list)
+    return res
     # m3, m_top, m_bot, boxes_list = computing2(ret_matrix, dummy, CAP, VOL, lamda, boxes, trl, output_list)
 
 
@@ -101,6 +101,6 @@ def compute_return_rate(_x):
     ret_total_portfolio = ret_matrix_cut.mean(axis=1)
 
     # 计算收益率，买TOP，卖空BOTTOM
-    total_ret = ret_top - ret_bot
+    total_ret = ret_top.replace(np.nan,0) - ret_bot.replace(np.nan,0)
 
     return total_ret, ret_df, ret_top, ret_bot, ret_total_portfolio  # 投资组合收益率，不同盒子的收益率，买TOP的收益率，做空BOTTOM的收益率，按照时间段截取的收益率

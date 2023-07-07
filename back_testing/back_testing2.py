@@ -254,7 +254,7 @@ def set_sector_dir(sector_memeber_name):
     return parent_path
 
 
-def get_sector_number_dummy_matrix(sector_member_name):
+def get_sector_number_dummy_matrix(sector_member_name, start_date, end_date):
     if sector_member_name == '中证500':
         return timing(get_China_Securities_Index500().replace(np.nan, False).replace(1.0, True), start_date, end_date)
     elif sector_member_name == '中证1000':
@@ -333,34 +333,41 @@ def multi_process_data_analysis(_input):
     # 循环结束
 
 
-# 生成四个矩阵(dataframe)：收益率，是否为指定成分股的dummy，市值， 波动率
-def run_back_testing_new(factor_1_name, factor_2_name, calc_method, nmlz_days):
-    try:
-        # T_read1 = time.perf_counter()
 
+def run_back_testing_new(factor_1_name, factor_2_name, calc_method, nmlz_days):
+    '''
+    生成四个矩阵(dataframe)：执行回测，输出一个df_list，并在收益率超过0.2时存储一个pkl。
+    :param factor_1_name: 因子1的名称（用于执行回测因子构建第一步：筛选符合条件的日期）
+    :param factor_2_name: 因子2的名称（用于利用指定日期的数据生成的因子数据）
+    :param calc_method: 使用的计算方法
+    :param nmlz_days: 归一化的天数
+    :return: 一个dataframe表格
+    '''
+    try:
         # 获取数据矩阵，并降低精度
-        ret = timing(get_ret_matrix(), start_date, end_date).astype('float16')
-        dummy = get_sector_number_dummy_matrix(sector_member)
+        dummy = get_sector_number_dummy_matrix(sector_member, start_date, end_date)
+        ret = timing(get_ret_matrix(), start_date, end_date)[dummy].astype('float16')
         parent_path = set_sector_dir(sector_member)
 
         # 锁定时间区间
-        _factor_1_matrix = timing(get_factor_matrix(factor_1_name), start_date, end_date).apply(np.log1p).astype(
-            'float16')
-        _factor_2_matrix = timing(get_factor_matrix(factor_2_name), start_date, end_date).apply(np.log1p).astype(
-            'float16')
+        _factor_1_matrix = timing(get_factor_matrix(factor_1_name), start_date, end_date)[dummy]
+        _factor_2_matrix = timing(get_factor_matrix(factor_2_name), start_date, end_date)[dummy]
+
+        # 预处理
+        _factor_1_matrix_pre = (_factor_1_matrix - _factor_1_matrix.min(axis=1).min(axis=0)).apply(np.log1p).fillna(method='backfill',axis=0, limit=10)
+        _factor_2_matrix_pre = (_factor_2_matrix - _factor_2_matrix.min(axis=1).min(axis=0)).apply(np.log1p).fillna(method='backfill',axis=0, limit=10)
+
+
         # 用于装参数表格的list
         df_table_list = []
-        # T_read2 = time.perf_counter()
-        # print("读取数据用时：", T_read2 - T_read1)
 
         dir2 = set_factor_dir(parent_path, start_date, end_date, factor_1_name, factor_2_name)
         # 计算新因子，把compute的数据装载到list里，可以提前释放内存。
         new_res_list = []
-        for return_items in compute(ret, dummy, _factor_1_matrix, _factor_2_matrix, calc_method, nmlz_days):
+        for return_items in compute(ret, _factor_1_matrix_pre, _factor_2_matrix_pre, calc_method, nmlz_days):
             ret_total, ret_boxes_df, ret_top, ret_bot, method, _factor_2_new, ret_new, ret_portfolio, trl, nmlz_days, partition_loc = return_items
-            new_res_list.append((( ret_total, ret_boxes_df, ret_top, ret_bot, method, _factor_2_new, ret_new,
+            new_res_list.append(((ret_total, ret_boxes_df, ret_top, ret_bot, method, _factor_2_new, ret_new,
                                   ret_portfolio, trl, nmlz_days, partition_loc), factor_1_name, factor_2_name, dir2))
-
         # 多进程运算，得到所需变量
         with ProcessPoolExecutor(max_workers=cpu_number) as executor:
             return_list = executor.map(multi_process_data_analysis, new_res_list)
