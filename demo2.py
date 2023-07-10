@@ -60,10 +60,12 @@ if __name__ == '__main__':
             back_testing_return = run_back_testing_new(factor_1, factor_2, calc_method, nmlz_days)
 
             # 判断返回的值，并处理文件
-            if back_testing_return != None:  # 若符合条件，则保存csv
+            if back_testing_return != None:
+                # 若符合条件，则保存csv
                 df = pd.concat(back_testing_return, axis=0)
                 save_csv(df)
-            else:  # 不符合条件，则将出错的因子组合添加进错误列表，并打印错误列表
+            else:
+                # 不符合条件，则将出错的因子组合添加进错误列表，并打印错误列表
                 wrong_list.append((factor_1, factor_2))
                 print(wrong_list)
 
