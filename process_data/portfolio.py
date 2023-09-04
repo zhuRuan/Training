@@ -297,7 +297,7 @@ def multi_process_new_factor(A_matrix: pd.DataFrame, B_matrix: pd.DataFrame, cal
     :return:一个list，list的每个单元的结构为（新因子矩阵，所用的方法名称）
     '''
 
-    # 多线程计算新的因子矩阵
+    # 多进程计算新的因子矩阵
     # 构建calculate_new_factor的输入参数
     input_list = []
     for partition_loc in partition_loc_tuple:

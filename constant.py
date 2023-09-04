@@ -43,7 +43,7 @@ partition_loc_tuple = ('TOP','BOTTOM')  # 可选TOP或BOTTOM。选择TOP：选�
 # 目前默认参考基准为指数的算术平均
 
 # 运行参数控制
-# 线程数量控制
+# 进程数量控制
 cpu_number = 6
 
 # 存储位置
