@@ -18,6 +18,7 @@ import os
 
 
 def mkdir(path):
+    # 创建文件夹
     folder = os.path.exists(path)
 
     if not folder:  # 判断是否存在文件夹如果不存在则创建为文件夹
